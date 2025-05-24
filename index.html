@@ -4,6 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Client-Telecaller Management Dashboard</title>
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#3498db">
+    <meta name="description" content="A dashboard for managing client-telecaller relationships">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Telix Dashboard">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-152x152.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-72x72.png">
+    
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1301,6 +1320,130 @@
                     answer: larger - smaller
                 };
             }
+        }
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+        
+        // Add offline detection
+        window.addEventListener('online', handleConnectionChange);
+        window.addEventListener('offline', handleConnectionChange);
+        
+        function handleConnectionChange(event) {
+            if (navigator.onLine) {
+                document.body.classList.remove('offline');
+                // Resync with Firebase when coming back online
+                fetchAllAssignedTelecallers().then(() => {
+                    fetchClients();
+                    fetchTelecallerNames();
+                });
+            } else {
+                document.body.classList.add('offline');
+                // Add a notification that the app is offline
+                showOfflineNotification();
+            }
+        }
+        
+        function showOfflineNotification() {
+            const notification = document.createElement('div');
+            notification.textContent = 'You are currently offline. Some features may be limited.';
+            notification.style.position = 'fixed';
+            notification.style.bottom = '20px';
+            notification.style.left = '50%';
+            notification.style.transform = 'translateX(-50%)';
+            notification.style.backgroundColor = '#e74c3c';
+            notification.style.color = 'white';
+            notification.style.padding = '10px 20px';
+            notification.style.borderRadius = '5px';
+            notification.style.zIndex = '1000';
+            notification.id = 'offline-notification';
+            
+            // Remove any existing notification first
+            const existingNotification = document.getElementById('offline-notification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+            
+            document.body.appendChild(notification);
+        }
+        
+        // Add "Add to Home Screen" promotion
+        let deferredPrompt;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 76+ from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            deferredPrompt = e;
+            
+            // Show the install button after a delay
+            setTimeout(() => {
+                showInstallPromotion();
+            }, 3000);
+        });
+        
+        function showInstallPromotion() {
+            if (!deferredPrompt) return;
+            
+            const promotion = document.createElement('div');
+            promotion.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                    <span>Install this app on your device</span>
+                    <button id="install-button" style="background-color: var(--accent-color); border: none; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Install</button>
+                    <button id="close-promo-button" style="background: none; border: none; color: white; cursor: pointer; font-size: 20px;">&times;</button>
+                </div>
+            `;
+            promotion.style.position = 'fixed';
+            promotion.style.top = '20px';
+            promotion.style.left = '50%';
+            promotion.style.transform = 'translateX(-50%)';
+            promotion.style.backgroundColor = '#333';
+            promotion.style.color = 'white';
+            promotion.style.padding = '15px 20px';
+            promotion.style.borderRadius = '5px';
+            promotion.style.zIndex = '1000';
+            promotion.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+            promotion.id = 'install-promotion';
+            
+            // Remove any existing promotion first
+            const existingPromotion = document.getElementById('install-promotion');
+            if (existingPromotion) {
+                existingPromotion.remove();
+            }
+            
+            document.body.appendChild(promotion);
+            
+            // Set up button event listeners
+            document.getElementById('install-button').addEventListener('click', () => {
+                // Hide the promotion
+                promotion.style.display = 'none';
+                // Show the browser install prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the install prompt');
+                    } else {
+                        console.log('User dismissed the install prompt');
+                    }
+                    // Clear the deferred prompt variable
+                    deferredPrompt = null;
+                });
+            });
+            
+            document.getElementById('close-promo-button').addEventListener('click', () => {
+                promotion.style.display = 'none';
+            });
         }
     </script>
 </body>
