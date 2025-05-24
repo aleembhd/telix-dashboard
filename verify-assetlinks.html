@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Digital Asset Links Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #212121;
+            color: white;
+        }
+        .result {
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .success {
+            background-color: #2ecc71;
+        }
+        .error {
+            background-color: #e74c3c;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Digital Asset Links Verification</h1>
+    <p>This page checks if your assetlinks.json file is properly accessible.</p>
+    
+    <button id="checkButton">Check assetlinks.json</button>
+    
+    <div id="result" class="result"></div>
+    
+    <script>
+        document.getElementById('checkButton').addEventListener('click', async function() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = 'Checking...';
+            
+            try {
+                const response = await fetch('/.well-known/assetlinks.json');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>Success! Your assetlinks.json file is accessible.</h3>
+                        <p>Content:</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                        <p>URL: ${window.location.origin}/.well-known/assetlinks.json</p>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h3>Error: HTTP ${response.status}</h3>
+                        <p>Your assetlinks.json file is not accessible.</p>
+                        <p>Make sure:</p>
+                        <ul>
+                            <li>The .well-known directory exists</li>
+                            <li>The assetlinks.json file is in the .well-known directory</li>
+                            <li>Your Netlify configuration is correct</li>
+                        </ul>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>Error: ${error.message}</h3>
+                    <p>Failed to fetch the assetlinks.json file.</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html> 

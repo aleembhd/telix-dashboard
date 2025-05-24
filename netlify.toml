@@ -1,0 +1,15 @@
+[build]
+  publish = "./"
+
+[[headers]]
+  for = "/.well-known/*"
+    [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Content-Type = "application/json"
+
+# Ensure .well-known directory is accessible
+[[redirects]]
+  from = "/.well-known/*"
+  to = "/.well-known/:splat"
+  status = 200
+  force = true 
