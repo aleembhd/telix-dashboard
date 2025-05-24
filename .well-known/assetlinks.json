@@ -3,6 +3,6 @@
     "target": {
       "namespace": "android_app",
       "package_name": "app.netlify.telixadminpannel.twa",
-      "sha256_cert_fingerprints": ["09:B6:24:3D:2A:20:E0:59:51:3A:5A:CD:6B:08:AA:FF:35:65:5E:9E:64:0B:2A:8B:71:ED:AC:D3:64:98:7C:EB"]
+      "sha256_cert_fingerprints": ["03:7C:62:9A:DD:5F:21:A1:87:52:1E:DD:14:45:38:B3:A6:DE:6D:88:6A:E5:53:E6:06:C9:0C:D7:85:38:20:99"]
     }
   }]
