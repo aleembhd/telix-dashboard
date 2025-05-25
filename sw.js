@@ -1,4 +1,4 @@
-const CACHE_NAME = 'telix-dashboard-v1';
+const CACHE_NAME = 'telix-dashboard-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -6,7 +6,9 @@ const urlsToCache = [
   '/manifest.json',
   'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap',
   'https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js',
-  'https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js'
+  'https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js',
+  '/icons/192x192.png',
+  '/icons/512x512.png'
 ];
 
 // Install Service Worker
@@ -17,6 +19,7 @@ self.addEventListener('install', event => {
         console.log('Opened cache');
         return cache.addAll(urlsToCache);
       })
+      .then(() => self.skipWaiting()) // Force the waiting service worker to become active
   );
 });
 
@@ -63,7 +66,7 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// Update Service Worker
+// Update Service Worker and clean up old caches
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
@@ -71,10 +74,14 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
+            console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
+    }).then(() => {
+      console.log('Service Worker activated and controlling the page');
+      return self.clients.claim(); // Take control of all clients under service worker scope
     })
   );
 }); 

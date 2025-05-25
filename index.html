@@ -5,11 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Client-Telecaller Management Dashboard</title>
     <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#3498db">
+    <meta name="theme-color" content="#000000">
     <meta name="description" content="A dashboard for managing client-telecaller relationships">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Telix Dashboard">
+    
+    <!-- Additional status bar color for Android -->
+    <meta name="msapplication-TileColor" content="#000000">
+    <meta name="msapplication-navbutton-color" content="#000000">
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
@@ -26,7 +30,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #3498db;
+            --primary-color: #000000;
             --accent-color: #f39c12;
             --accent-hover: #e67e22;
             --secondary-color: #2ecc71;
@@ -66,6 +70,24 @@
             top: 0;
             z-index: 10;
             background-color: #000000;
+        }
+        
+        /* Additional styling to force black status bar */
+        @media screen and (display-mode: standalone) {
+            html, body {
+                background-color: #000000;
+            }
+            
+            header::before {
+                content: '';
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 100px; /* Cover status bar height */
+                background-color: #000000;
+                z-index: 9;
+            }
         }
 
         .header-content {
