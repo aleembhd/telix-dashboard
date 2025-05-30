@@ -1,0 +1,367 @@
+:root {
+    --primary-color: #000000;
+    --accent-color: #f39c12;
+    --accent-hover: #e67e22;
+    --secondary-color: #2ecc71;
+    --secondary-dark: #27ae60;
+    --danger-color: #e74c3c;
+    --light-gray: #f5f7fa;
+    --medium-gray: #e1e5eb;
+    --dark-gray: #4a5568;
+    --text-color: #2d3748;
+    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #000000;
+    color: var(--text-color);
+    padding: 0;
+    margin: 0;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    padding: 20px 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #000000;
+}
+
+/* Additional styling to force black status bar */
+@media screen and (display-mode: standalone) {
+    html, body {
+        background-color: #000000;
+    }
+    
+    header::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 100px; /* Cover status bar height */
+        background-color: #000000;
+        z-index: 9;
+    }
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: white;
+    position: relative;
+    z-index: 20; /* Ensure text is above the header overlay */
+}
+
+/* Fix for header text visibility in standalone mode */
+@media screen and (display-mode: standalone) {
+    .logo {
+        display: inline-block;
+        color: white;
+        position: relative;
+        z-index: 20;
+        text-shadow: 0px 1px 2px rgba(0,0,0,0.8);
+    }
+    
+    header {
+        position: relative;
+        z-index: 15;
+    }
+    
+    header::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 100px; /* Cover status bar height */
+        background-color: #000000;
+        z-index: 9;
+    }
+}
+
+.card {
+    background-color: #191919;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    position: relative;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    cursor: pointer;
+    border-left: 3px solid var(--accent-color);
+}
+
+.card-title {
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.card-subtitle {
+    color: #888;
+    font-size: 0.85rem;
+    margin-top: 4px;
+}
+
+.card-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--accent-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    font-size: 20px;
+    transition: background-color 0.2s;
+}
+
+.card-button:hover {
+    background-color: var(--accent-hover);
+}
+
+.card-content {
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.card-content.active {
+    padding: 20px;
+    max-height: 2000px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #ddd;
+}
+
+input[type="text"],
+input[type="tel"],
+input[type="password"],
+select {
+    width: 100%;
+    padding: 12px;
+    background-color: #333;
+    color: white;
+    border: 1px solid #444;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+input::placeholder {
+    color: #777;
+}
+
+.button {
+    display: inline-block;
+    padding: 12px 20px;
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.button:hover {
+    background-color: var(--accent-hover);
+}
+
+.button.secondary {
+    background-color: var(--secondary-color);
+}
+
+.button.secondary:hover {
+    background-color: var(--secondary-dark);
+}
+
+.button.danger {
+    background-color: var(--danger-color);
+}
+
+.telecaller-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.telecaller-button {
+    aspect-ratio: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 500;
+    background-color: #333;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.telecaller-button.available {
+    background-color: #333;
+    border: 1px solid #444;
+}
+
+.telecaller-button.selected {
+    background-color: #2ecc71;
+    color: white;
+}
+
+.telecaller-button.assigned {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.telecaller-button.frozen {
+    background-color: #f39c12;
+    color: white;
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.telecaller-status {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: #ddd;
+}
+
+.status-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.status-color.available {
+    background-color: #333;
+    border: 1px solid #444;
+}
+
+.status-color.selected {
+    background-color: #2ecc71;
+}
+
+.status-color.assigned {
+    background-color: var(--secondary-color);
+}
+
+.status-color.frozen {
+    background-color: #f39c12;
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    .telecaller-grid {
+        grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .button {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .telecaller-grid {
+        grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    }
+
+    .card-content.active {
+        padding: 15px;
+    }
+
+    .header-content {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+#existingClientsList {
+    list-style: none;
+    padding: 0;
+}
+
+.client-item {
+    background-color: #333;
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+}
+
+.client-item:hover {
+    background-color: #444;
+}
+
+.client-name {
+    font-weight: 500;
+}
+
+.client-phone {
+    color: #bbb;
+    font-size: 0.9rem;
+}

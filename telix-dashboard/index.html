@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client-Telecaller Management Dashboard</title>
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#000000">
+    <meta name="description" content="A dashboard for managing client-telecaller relationships">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Telix Dashboard">
+    
+    <!-- Additional status bar color for Android -->
+    <meta name="msapplication-TileColor" content="#000000">
+    <meta name="msapplication-navbutton-color" content="#000000">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-152x152.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-72x72.png">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- External CSS file -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">Client-Telecaller Dashboard</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Add New Client Card -->
+        <div class="card" id="addClientCard">
+            <div class="card-header" onclick="toggleCard('addClientContent'); freezeAssignedTelecallerButtons();">
+                <div>
+                    <div class="card-title">Add New Client</div>
+                    <div class="card-subtitle">Quickly add a new client to the system</div>
+                </div>
+                <button class="card-button" onclick="toggleCard('addClientContent', event); freezeAssignedTelecallerButtons();">+</button>
+            </div>
+            <div class="card-content" id="addClientContent">
+                <div class="form-group">
+                    <label for="clientName">Client Name</label>
+                    <input type="text" id="clientName" placeholder="Enter client name">
+                </div>
+                <div class="form-group">
+                    <label for="clientPhone">Client Phone Number</label>
+                    <input type="tel" id="clientPhone" placeholder="Enter phone number">
+                </div>
+
+                <div class="form-group">
+                    <label>Assign Telecallers</label>
+                    
+                    <div class="telecaller-status">
+                        <div class="status-item">
+                            <div class="status-color available"></div>
+                            <span>Available</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-color selected"></div>
+                            <span>Selected</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-color frozen"></div>
+                            <span>Assigned to Client</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Telecaller count display -->
+                    <div style="margin: 10px 0; color: #ddd; font-size: 0.9rem; background-color: #2a2a2a; padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between;">
+                        <span>Available: <span id="newClientAvailableCount">0</span></span>
+                        <span>Selected: <span id="newClientSelectedCount">0</span></span>
+                        <span>Assigned: <span id="newClientAssignedCount">0</span></span>
+                    </div>
+
+                    <div class="telecaller-grid" id="newClientTelecallerGrid">
+                        <!-- Telecaller buttons will be generated here -->
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="button" id="addClientBtn">Add Client</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Update Existing Client Card -->
+        <div class="card" id="existingClientsCard">
+            <div class="card-header" onclick="toggleCard('existingClientsContent')">
+                <div>
+                    <div class="card-title">Existing Clients</div>
+                    <div class="card-subtitle">Manage and update existing clients</div>
+                </div>
+                <button class="card-button" onclick="toggleCard('existingClientsContent', event)">+</button>
+            </div>
+            <div class="card-content" id="existingClientsContent">
+                <ul id="existingClientsList">
+                    <!-- Client list will be populated here dynamically -->
+                </ul>
+                
+                <div id="clientUpdateForm" style="display: none; margin-top: 20px;">
+                    <h3 style="color: white; margin-bottom: 15px;">Update Client</h3>
+                    <div class="form-group">
+                        <label for="updateClientName">Client Name</label>
+                        <input type="text" id="updateClientName" placeholder="Enter client name">
+                    </div>
+                    <div class="form-group">
+                        <label for="updateClientPhone">Client Phone Number</label>
+                        <input type="tel" id="updateClientPhone" placeholder="Enter phone number">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Manage Telecallers</label>
+                        
+                        <div class="telecaller-status">
+                            <div class="status-item">
+                                <div class="status-color available"></div>
+                                <span>Available</span>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-color selected"></div>
+                                <span>Selected</span>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-color frozen"></div>
+                                <span>Assigned to Client</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Telecaller count display -->
+                        <div style="margin: 10px 0; color: #ddd; font-size: 0.9rem; background-color: #2a2a2a; padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between;">
+                            <span>Available: <span id="updateClientAvailableCount">0</span></span>
+                            <span>Selected: <span id="updateClientSelectedCount">0</span></span>
+                            <span>Assigned: <span id="updateClientAssignedCount">0</span></span>
+                        </div>
+
+                        <div class="telecaller-grid" id="updateClientTelecallerGrid">
+                            <!-- Telecaller buttons will be generated here -->
+                        </div>
+                        
+                        <!-- New section to display telecaller names -->
+                        <div class="selected-telecallers-container" style="margin-top: 20px; color: #ddd; background-color: #2a2a2a; border-radius: 4px; padding: 15px; display: none;" id="selectedTelecallersContainer">
+                            <h4 style="margin-bottom: 10px; color: var(--accent-color);">Selected Telecallers</h4>
+                            <ul id="selectedTelecallersList" style="list-style: none; padding: 0;">
+                                <!-- Selected telecaller names will be displayed here -->
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="button secondary" id="updateClientBtn">Update Client</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Telecaller Settings Card -->
+        <div class="card" id="telecallerSettingsCard">
+            <div class="card-header" onclick="toggleCard('telecallerSettingsContent')">
+                <div>
+                    <div class="card-title">Telecaller Settings</div>
+                    <div class="card-subtitle">Update telecaller limit and settings</div>
+                </div>
+                <button class="card-button" onclick="toggleCard('telecallerSettingsContent', event)">+</button>
+            </div>
+            <div class="card-content" id="telecallerSettingsContent">
+                <div class="form-group">
+                    <label for="telecallerLimit">Telecaller Limit</label>
+                    <input type="number" id="telecallerLimit" placeholder="Enter telecaller limit" min="1" max="100" style="background-color: #333; color: white; border: 1px solid #444; border-radius: 4px; font-size: 1rem; padding: 12px; width: 100%;">
+                    <small style="color: #888; display: block; margin-top: 5px;">Current limit: <span id="currentTelecallerLimit">50</span></small>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="button" id="updateTelecallerLimitBtn">Update Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assigned Telecallers Monitor Card -->
+        <div class="card" id="assignedTelecallersCard">
+            <div class="card-header" onclick="toggleCard('assignedTelecallersContent')">
+                <div>
+                    <div class="card-title">Assigned Telecallers Monitor</div>
+                    <div class="card-subtitle">View all currently assigned telecallers</div>
+                </div>
+                <button class="card-button" onclick="toggleCard('assignedTelecallersContent', event)">+</button>
+            </div>
+            <div class="card-content" id="assignedTelecallersContent">
+                <div class="form-group">
+                    <label>Assigned Telecallers Overview</label>
+                    
+                    <!-- Telecaller stats display -->
+                    <div style="margin: 10px 0; color: #ddd; font-size: 0.9rem; background-color: #2a2a2a; padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between;">
+                        <span>Total: <span id="totalTelecallerCount">0</span></span>
+                        <span>Assigned: <span id="monitorAssignedCount">0</span></span>
+                        <span>Available: <span id="monitorAvailableCount">0</span></span>
+                    </div>
+
+                    <div class="telecaller-grid" id="monitorTelecallerGrid">
+                        <!-- All telecaller buttons will be shown here -->
+                    </div>
+                </div>
+                
+                <!-- Container for detailed telecaller assignments info -->
+                <div id="assignmentDetailsContainer" style="margin-top: 20px; color: #ddd; background-color: #2a2a2a; border-radius: 4px; padding: 15px; display: none;">
+                    <h4 style="margin-bottom: 10px; color: var(--accent-color);">Telecaller Assignment Details</h4>
+                    <ul id="assignmentDetailsList" style="list-style: none; padding: 0;">
+                        <!-- Assignment details will be displayed here -->
+                    </ul>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="button" id="refreshAssignmentsBtn">Refresh Assignments</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Telecaller Credentials Popup Modal -->
+    <div id="credentialsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;">
+        <div style="background-color: #222; width: 90%; max-width: 400px; border-radius: 8px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="color: white; margin: 0; font-size: 1.2rem;" id="credentialsModalTitle">Telecaller Credentials</h3>
+                <button style="background: none; border: none; color: #aaa; font-size: 1.5rem; cursor: pointer;" onclick="closeCredentialsModal()">×</button>
+            </div>
+            
+            <!-- Telecaller Credentials -->
+            <div style="margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 15px;">
+                <h4 style="color: #f39c12; margin: 0 0 10px 0; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Telecaller Credentials</span>
+                    <button id="deleteCredentialsBtn" style="background: none; border: none; color: #ff6b6b; cursor: pointer; display: flex; align-items: center;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                            <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                        </svg>
+                    </button>
+                </h4>
+                <div style="margin-bottom: 15px;">
+                    <label for="telecallerEmail" style="display: block; color: #ddd; margin-bottom: 8px;">Email</label>
+                    <input type="email" id="telecallerEmail" style="width: 100%; padding: 12px; background-color: #333; color: white; border: 1px solid #444; border-radius: 4px; font-size: 1rem;">
+                </div>
+                <div style="margin-bottom: 5px;">
+                    <label for="telecallerPassword" style="display: block; color: #ddd; margin-bottom: 8px;">Password</label>
+                    <input type="text" id="telecallerPassword" style="width: 100%; padding: 12px; background-color: #333; color: white; border: 1px solid #444; border-radius: 4px; font-size: 1rem;">
+                </div>
+            </div>
+            
+            <!-- Admin Credentials -->
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #f39c12; margin: 0 0 10px 0;">Admin Credentials</h4>
+                <div style="margin-bottom: 15px;">
+                    <label for="adminEmail" style="display: block; color: #ddd; margin-bottom: 8px;">Email</label>
+                    <input type="email" id="adminEmail" style="width: 100%; padding: 12px; background-color: #333; color: white; border: 1px solid #444; border-radius: 4px; font-size: 1rem;">
+                </div>
+                <div style="margin-bottom: 5px;">
+                    <label for="adminPassword" style="display: block; color: #ddd; margin-bottom: 8px;">Password</label>
+                    <input type="text" id="adminPassword" style="width: 100%; padding: 12px; background-color: #333; color: white; border: 1px solid #444; border-radius: 4px; font-size: 1rem;">
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end;">
+                <button id="saveCredentialsBtn" style="padding: 10px 20px; background-color: #f39c12; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer;">Save Credentials</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    
+    <!-- External JS file -->
+    <script src="script.js"></script>
+</body>
+</html> 
