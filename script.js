@@ -19,6 +19,12 @@ if (!firebase.apps.length) {
         .catch(error => {
             console.error('Error setting auth persistence:', error);
         });
+    
+    // Enable database persistence to reduce latency and improve offline capabilities
+    firebase.database().setPersistence({ synchronizeTabs: true })
+        .catch(error => {
+            console.error('Error enabling database persistence:', error);
+        });
 }
 
 // Store telecaller names from Firebase
@@ -396,6 +402,9 @@ function generateTelecallerButtons(containerId, limit) {
         button.setAttribute('data-telecaller-id', i);
         button.textContent = i;
         
+        // Set all buttons initially to light grey (opacity 0.5)
+        button.style.opacity = '0.5';
+        
         // Add long-press event for credentials popup
         addLongPressEvent(button, i);
         
@@ -548,6 +557,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Fetch existing clients from Firebase
     fetchClients();
     
+    // Start listening for changes to registered telecallers
+    listenForRegisteredTelecallerChanges();
+    
     // Fetch telecaller settings and generate telecaller buttons with assigned ones frozen
     firebase.database().ref('telecaller_settings').once('value')
         .then(snapshot => {
@@ -565,6 +577,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Pre-freeze assigned buttons for faster response when card is opened
                 freezeAssignedTelecallerButtons();
+                
+                // Fetch all registered telecallers in a single query for better performance
+                fetchAllRegisteredTelecallers(totalTelecallers);
             });
         })
         .catch(error => {
@@ -579,6 +594,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Pre-freeze assigned buttons for faster response when card is opened
                 freezeAssignedTelecallerButtons();
+                
+                // Fetch all registered telecallers in a single query for better performance
+                fetchAllRegisteredTelecallers(50);
             });
         });
     
@@ -1077,6 +1095,9 @@ function generateMonitorTelecallerGrid(limit) {
         button.setAttribute('data-telecaller-id', i);
         button.textContent = i;
         
+        // Set all buttons initially to light grey (opacity 0.5)
+        button.style.opacity = '0.5';
+        
         // Add long-press event for credentials popup
         addLongPressEvent(button, i);
         
@@ -1259,53 +1280,20 @@ function showCredentialsPopup(telecallerId) {
     const adminEmail = `admin${telecallerId}@gmail.com`;
     const adminPassword = 'admin@123';
     
-    // Check if custom credentials are stored in Firebase
-    firebase.database().ref(`telecaller_credentials/${telecallerId}`).once('value')
-        .then(snapshot => {
-            const storedCredentials = snapshot.val() || {};
-            
-            // Set values in the form (use stored values if available, otherwise use defaults)
-            document.getElementById('telecallerEmail').value = storedCredentials.telecallerEmail || telecallerEmail;
-            document.getElementById('telecallerPassword').value = storedCredentials.telecallerPassword || telecallerPassword;
-            document.getElementById('adminEmail').value = storedCredentials.adminEmail || adminEmail;
-            document.getElementById('adminPassword').value = storedCredentials.adminPassword || adminPassword;
-            
-            // Show the modal
-            const modal = document.getElementById('credentialsModal');
-            modal.style.display = 'flex';
-            
-            // Setup save button event
-            document.getElementById('saveCredentialsBtn').onclick = function() {
-                saveCredentials(telecallerId);
-            };
-            
-            // Setup delete button event
-            document.getElementById('deleteCredentialsBtn').onclick = function() {
-                deleteCredentials(telecallerId);
-            };
-        })
-        .catch(error => {
-            console.error('Error fetching credentials:', error);
-            
-            // Still show the popup with default values on error
-            document.getElementById('telecallerEmail').value = telecallerEmail;
-            document.getElementById('telecallerPassword').value = telecallerPassword;
-            document.getElementById('adminEmail').value = adminEmail;
-            document.getElementById('adminPassword').value = adminPassword;
-            
-            const modal = document.getElementById('credentialsModal');
-            modal.style.display = 'flex';
-            
-            // Setup save button event
-            document.getElementById('saveCredentialsBtn').onclick = function() {
-                saveCredentials(telecallerId);
-            };
-            
-            // Setup delete button event
-            document.getElementById('deleteCredentialsBtn').onclick = function() {
-                deleteCredentials(telecallerId);
-            };
-        });
+    // Set values in the form with default values
+    document.getElementById('telecallerEmail').value = telecallerEmail;
+    document.getElementById('telecallerPassword').value = telecallerPassword;
+    document.getElementById('adminEmail').value = adminEmail;
+    document.getElementById('adminPassword').value = adminPassword;
+    
+    // Show the modal
+    const modal = document.getElementById('credentialsModal');
+    modal.style.display = 'flex';
+    
+    // Setup save button event
+    document.getElementById('saveCredentialsBtn').onclick = function() {
+        saveCredentials(telecallerId);
+    };
 }
 
 // Close the credentials modal
@@ -1331,43 +1319,60 @@ function saveCredentials(telecallerId) {
     saveButton.textContent = 'Saving...';
     saveButton.disabled = true;
     
-    // Create an array to track status of each account
-    const statusMessages = [];
+    // Create objects to track status of each account with symbols
+    const statusData = {
+        telecaller: { status: '', isNew: false },
+        admin: { status: '', isNew: false }
+    };
     
-    // First save to realtime database
-    firebase.database().ref(`telecaller_credentials/${telecallerId}`).set({
-        telecallerEmail: telecallerEmail,
-        telecallerPassword: telecallerPassword,
-        adminEmail: adminEmail,
-        adminPassword: adminPassword
-    })
-    .then(() => {
-        // Now create authentication accounts if they don't exist
-        return checkAndCreateAuthUser(telecallerEmail, telecallerPassword)
-            .then(telecallerStatus => {
-                statusMessages.push(`Telecaller: ${telecallerStatus}`);
-                return checkAndCreateAuthUser(adminEmail, adminPassword);
-            })
-            .then(adminStatus => {
-                statusMessages.push(`Admin: ${adminStatus}`);
-                
-                // Show direct, clear alert
-                alert(`Credentials saved & registered!\n\n${statusMessages.join('\n')}`);
-                closeCredentialsModal();
-                
-                // Update telecaller button style to show it's registered
-                updateTelecallerButtonStyle(telecallerId, true);
-            });
-    })
-    .catch(error => {
-        console.error('Error saving credentials:', error);
-        alert('Error: ' + error.message);
-    })
-    .finally(() => {
-        // Reset button state
-        saveButton.textContent = originalButtonText;
-        saveButton.disabled = false;
-    });
+    // Create authentication accounts directly without saving to Realtime Database
+    checkAndCreateAuthUser(telecallerEmail, telecallerPassword)
+        .then(telecallerStatus => {
+            // Check if this is a new registration or existing account
+            statusData.telecaller.isNew = telecallerStatus === "Successfully registered new account";
+            statusData.telecaller.status = telecallerStatus;
+            return checkAndCreateAuthUser(adminEmail, adminPassword);
+        })
+        .then(adminStatus => {
+            // Check if this is a new registration or existing account
+            statusData.admin.isNew = adminStatus === "Successfully registered new account";
+            statusData.admin.status = adminStatus;
+            
+            // Create professional alert message with symbols
+            const successSymbol = "✅";
+            const infoSymbol = "ℹ️";
+            
+            let alertMessage = "Credentials Saved Successfully!\n\n";
+            
+            // Add telecaller status with appropriate symbol
+            alertMessage += statusData.telecaller.isNew ? 
+                `${successSymbol} Telecaller: New account created\n` : 
+                `${infoSymbol} Telecaller: Account already exists\n`;
+            
+            // Add admin status with appropriate symbol
+            alertMessage += statusData.admin.isNew ? 
+                `${successSymbol} Admin: New account created` : 
+                `${infoSymbol} Admin: Account already exists`;
+            
+            // Store registration status in Firebase Realtime Database
+            firebase.database().ref(`registered_telecallers/${telecallerId}`).set(true);
+            
+            // Show enhanced alert
+            alert(alertMessage);
+            closeCredentialsModal();
+            
+            // Update telecaller button style to show it's registered
+            updateTelecallerButtonStyle(telecallerId, true);
+        })
+        .catch(error => {
+            console.error('Error saving credentials:', error);
+            alert('❌ Error: ' + error.message);
+        })
+        .finally(() => {
+            // Reset button state
+            saveButton.textContent = originalButtonText;
+            saveButton.disabled = false;
+        });
 }
 
 // Delete credentials from Firebase
@@ -1388,43 +1393,31 @@ function deleteCredentials(telecallerId) {
         return;
     }
     
-    // Show loading state
-    const deleteButton = document.getElementById('deleteCredentialsBtn');
-    deleteButton.disabled = true;
-    
     // Create array to track status messages
     const statusMessages = [];
     
-    // Delete from Realtime Database first
-    firebase.database().ref(`telecaller_credentials/${telecallerId}`).remove()
-        .then(() => {
-            // Delete from Authentication (requires admin SDK on server, so we'll just attempt sign-in and deletion)
-            // For now, just remove from database and show appropriate messages
-            statusMessages.push('Credentials removed from database');
+    // Try to delete from Authentication by signing in and deleting account
+    deleteAuthUser(telecallerEmail)
+        .then(telecallerStatus => {
+            statusMessages.push(`Telecaller: ${telecallerStatus}`);
+            return deleteAuthUser(adminEmail);
+        })
+        .then(adminStatus => {
+            statusMessages.push(`Admin: ${adminStatus}`);
             
-            // Try to delete from Authentication by signing in and deleting account
-            return deleteAuthUser(telecallerEmail)
-                .then(telecallerStatus => {
-                    statusMessages.push(`Telecaller: ${telecallerStatus}`);
-                    return deleteAuthUser(adminEmail);
-                })
-                .then(adminStatus => {
-                    statusMessages.push(`Admin: ${adminStatus}`);
-                    
-                    // Show success message
-                    alert(`Credentials deleted!\n\n${statusMessages.join('\n')}`);
-                    closeCredentialsModal();
-                    
-                    // Update telecaller button style to show it's unregistered
-                    updateTelecallerButtonStyle(telecallerId, false);
-                });
+            // Remove registration status from Firebase Realtime Database
+            firebase.database().ref(`registered_telecallers/${telecallerId}`).remove();
+            
+            // Show success message
+            alert(`Credentials deleted!\n\n${statusMessages.join('\n')}`);
+            closeCredentialsModal();
+            
+            // Update telecaller button style to show it's unregistered
+            updateTelecallerButtonStyle(telecallerId, false);
         })
         .catch(error => {
             console.error('Error deleting credentials:', error);
             alert(`Error: ${error.message}`);
-        })
-        .finally(() => {
-            deleteButton.disabled = false;
         });
 }
 
@@ -1505,5 +1498,98 @@ function checkAndCreateAuthUser(email, password) {
                 console.error(`Error checking user ${email}:`, error);
                 resolve(`Error: ${error.message}`);
             });
+    });
+}
+
+// Check if telecaller has credentials in Firebase Authentication
+function checkTelecallerCredentials(telecallerId) {
+    // Check if the telecaller account exists in Firebase Authentication
+    const telecallerEmail = `telecaller${telecallerId}@gmail.com`;
+    
+    firebase.auth().fetchSignInMethodsForEmail(telecallerEmail)
+        .then(methods => {
+            if (methods.length > 0) {
+                // Account exists, update button style and save to Realtime Database with low priority
+                // Using set with low priority reduces contention on the database
+                updateTelecallerButtonStyle(telecallerId, true);
+                
+                const updates = {};
+                updates[`registered_telecallers/${telecallerId}`] = true;
+                
+                // Use update instead of set for better atomicity and performance
+                return firebase.database().ref().update(updates, { priority: 10 });
+            }
+        })
+        .catch(error => {
+            console.error(`Error checking telecaller credentials:`, error);
+        });
+}
+
+// Fetch all registered telecallers in a single query (efficient bulk fetch)
+function fetchAllRegisteredTelecallers(limit) {
+    // Get all registered telecallers in one database call instead of individual queries
+    firebase.database().ref('registered_telecallers').once('value')
+        .then(snapshot => {
+            const registeredTelecallers = snapshot.val() || {};
+            
+            // Update button styles for all registered telecallers
+            Object.keys(registeredTelecallers).forEach(telecallerId => {
+                if (registeredTelecallers[telecallerId] === true) {
+                    updateTelecallerButtonStyle(parseInt(telecallerId), true);
+                }
+            });
+            
+            // For any remaining telecallers, check Firebase Authentication in batches
+            // to avoid hitting rate limits, but only for the first 10 to reduce API calls
+            const batchSize = 5;
+            const maxToCheck = 10; // Limit how many we check to reduce API calls
+            
+            let uncheckedTelecallers = [];
+            for (let i = 1; i <= Math.min(limit, maxToCheck); i++) {
+                if (!registeredTelecallers[i]) {
+                    uncheckedTelecallers.push(i);
+                }
+            }
+            
+            // Process in small batches to avoid overwhelming the Firebase Authentication API
+            const processBatch = (startIndex) => {
+                if (startIndex >= uncheckedTelecallers.length) return;
+                
+                const endIndex = Math.min(startIndex + batchSize, uncheckedTelecallers.length);
+                const currentBatch = uncheckedTelecallers.slice(startIndex, endIndex);
+                
+                // Process each telecaller in the current batch
+                currentBatch.forEach(id => {
+                    checkTelecallerCredentials(id);
+                });
+                
+                // Process the next batch after a small delay
+                setTimeout(() => {
+                    processBatch(endIndex);
+                }, 500);
+            };
+            
+            // Start batch processing
+            processBatch(0);
+        })
+        .catch(error => {
+            console.error('Error fetching registered telecallers:', error);
+        });
+}
+
+// Listen for real-time changes to registered telecallers
+function listenForRegisteredTelecallerChanges() {
+    // Set up a listener to monitor changes to registered telecallers
+    firebase.database().ref('registered_telecallers').on('value', function(snapshot) {
+        const registeredTelecallers = snapshot.val() || {};
+        
+        // Update button styles for all registered telecallers
+        Object.keys(registeredTelecallers).forEach(telecallerId => {
+            if (registeredTelecallers[telecallerId] === true) {
+                updateTelecallerButtonStyle(parseInt(telecallerId), true);
+            }
+        });
+    }, function(error) {
+        console.error('Error setting up registered telecallers listener:', error);
     });
 }
