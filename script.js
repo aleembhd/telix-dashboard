@@ -19,12 +19,6 @@ if (!firebase.apps.length) {
         .catch(error => {
             console.error('Error setting auth persistence:', error);
         });
-    
-    // Enable database persistence to reduce latency and improve offline capabilities
-    firebase.database().setPersistence({ synchronizeTabs: true })
-        .catch(error => {
-            console.error('Error enabling database persistence:', error);
-        });
 }
 
 // Store telecaller names from Firebase
@@ -557,9 +551,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Fetch existing clients from Firebase
     fetchClients();
     
-    // Start listening for changes to registered telecallers
-    listenForRegisteredTelecallerChanges();
-    
     // Fetch telecaller settings and generate telecaller buttons with assigned ones frozen
     firebase.database().ref('telecaller_settings').once('value')
         .then(snapshot => {
@@ -578,8 +569,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Pre-freeze assigned buttons for faster response when card is opened
                 freezeAssignedTelecallerButtons();
                 
-                // Fetch all registered telecallers in a single query for better performance
-                fetchAllRegisteredTelecallers(totalTelecallers);
+                // Check for existing credentials in Firebase Authentication
+                for (let i = 1; i <= totalTelecallers; i++) {
+                    checkTelecallerCredentials(i);
+                }
             });
         })
         .catch(error => {
@@ -595,8 +588,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Pre-freeze assigned buttons for faster response when card is opened
                 freezeAssignedTelecallerButtons();
                 
-                // Fetch all registered telecallers in a single query for better performance
-                fetchAllRegisteredTelecallers(50);
+                // Check for existing credentials in Firebase Authentication
+                for (let i = 1; i <= 50; i++) {
+                    checkTelecallerCredentials(i);
+                }
             });
         });
     
@@ -1503,93 +1498,28 @@ function checkAndCreateAuthUser(email, password) {
 
 // Check if telecaller has credentials in Firebase Authentication
 function checkTelecallerCredentials(telecallerId) {
-    // Check if the telecaller account exists in Firebase Authentication
-    const telecallerEmail = `telecaller${telecallerId}@gmail.com`;
-    
-    firebase.auth().fetchSignInMethodsForEmail(telecallerEmail)
-        .then(methods => {
-            if (methods.length > 0) {
-                // Account exists, update button style and save to Realtime Database with low priority
-                // Using set with low priority reduces contention on the database
+    // First check Firebase Realtime Database for cached credential status
+    firebase.database().ref(`registered_telecallers/${telecallerId}`).once('value')
+        .then(snapshot => {
+            if (snapshot.exists() && snapshot.val() === true) {
+                // We have a record that this telecaller was registered
                 updateTelecallerButtonStyle(telecallerId, true);
-                
-                const updates = {};
-                updates[`registered_telecallers/${telecallerId}`] = true;
-                
-                // Use update instead of set for better atomicity and performance
-                return firebase.database().ref().update(updates, { priority: 10 });
+                return; // Exit early to reduce Firebase Authentication queries
             }
+            
+            // If no record in database, check Authentication directly
+            const telecallerEmail = `telecaller${telecallerId}@gmail.com`;
+            
+            return firebase.auth().fetchSignInMethodsForEmail(telecallerEmail)
+                .then(methods => {
+                    if (methods.length > 0) {
+                        // Account exists, update button style and save to Realtime Database
+                        updateTelecallerButtonStyle(telecallerId, true);
+                        firebase.database().ref(`registered_telecallers/${telecallerId}`).set(true);
+                    }
+                });
         })
         .catch(error => {
             console.error(`Error checking telecaller credentials:`, error);
         });
-}
-
-// Fetch all registered telecallers in a single query (efficient bulk fetch)
-function fetchAllRegisteredTelecallers(limit) {
-    // Get all registered telecallers in one database call instead of individual queries
-    firebase.database().ref('registered_telecallers').once('value')
-        .then(snapshot => {
-            const registeredTelecallers = snapshot.val() || {};
-            
-            // Update button styles for all registered telecallers
-            Object.keys(registeredTelecallers).forEach(telecallerId => {
-                if (registeredTelecallers[telecallerId] === true) {
-                    updateTelecallerButtonStyle(parseInt(telecallerId), true);
-                }
-            });
-            
-            // For any remaining telecallers, check Firebase Authentication in batches
-            // to avoid hitting rate limits, but only for the first 10 to reduce API calls
-            const batchSize = 5;
-            const maxToCheck = 10; // Limit how many we check to reduce API calls
-            
-            let uncheckedTelecallers = [];
-            for (let i = 1; i <= Math.min(limit, maxToCheck); i++) {
-                if (!registeredTelecallers[i]) {
-                    uncheckedTelecallers.push(i);
-                }
-            }
-            
-            // Process in small batches to avoid overwhelming the Firebase Authentication API
-            const processBatch = (startIndex) => {
-                if (startIndex >= uncheckedTelecallers.length) return;
-                
-                const endIndex = Math.min(startIndex + batchSize, uncheckedTelecallers.length);
-                const currentBatch = uncheckedTelecallers.slice(startIndex, endIndex);
-                
-                // Process each telecaller in the current batch
-                currentBatch.forEach(id => {
-                    checkTelecallerCredentials(id);
-                });
-                
-                // Process the next batch after a small delay
-                setTimeout(() => {
-                    processBatch(endIndex);
-                }, 500);
-            };
-            
-            // Start batch processing
-            processBatch(0);
-        })
-        .catch(error => {
-            console.error('Error fetching registered telecallers:', error);
-        });
-}
-
-// Listen for real-time changes to registered telecallers
-function listenForRegisteredTelecallerChanges() {
-    // Set up a listener to monitor changes to registered telecallers
-    firebase.database().ref('registered_telecallers').on('value', function(snapshot) {
-        const registeredTelecallers = snapshot.val() || {};
-        
-        // Update button styles for all registered telecallers
-        Object.keys(registeredTelecallers).forEach(telecallerId => {
-            if (registeredTelecallers[telecallerId] === true) {
-                updateTelecallerButtonStyle(parseInt(telecallerId), true);
-            }
-        });
-    }, function(error) {
-        console.error('Error setting up registered telecallers listener:', error);
-    });
 }
