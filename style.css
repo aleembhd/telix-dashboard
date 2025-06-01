@@ -157,7 +157,34 @@ header {
 
 .card-content.active {
     padding: 20px;
-    max-height: 2000px;
+    max-height: 80vh; /* Limit to 80% of viewport height */
+    overflow-y: auto; /* Enable vertical scrolling */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* Ensure scrollable area is clearly visible with subtle indicators */
+.card-content.active::-webkit-scrollbar {
+    width: 6px;
+}
+
+.card-content.active::-webkit-scrollbar-track {
+    background: #252525;
+    border-radius: 3px;
+}
+
+.card-content.active::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 3px;
+}
+
+.card-content.active::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Add extra bottom padding to ensure last elements are fully visible when scrolled */
+.card-content.active .action-buttons {
+    padding-bottom: 10px;
+    margin-bottom: 5px;
 }
 
 .form-group {
@@ -359,11 +386,75 @@ input::placeholder {
 
     .card-content.active {
         padding: 15px;
+        max-height: 75vh; /* Slightly smaller for tiny screens */
     }
 
     .header-content {
         flex-direction: column;
         gap: 8px;
+    }
+    
+    /* Make form elements more compact on small screens */
+    .form-group {
+        margin-bottom: 12px;
+    }
+    
+    label {
+        margin-bottom: 4px;
+        font-size: 0.95rem;
+    }
+    
+    input[type="text"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    select {
+        padding: 10px;
+        font-size: 0.95rem;
+    }
+    
+    /* Add a subtle scroll indicator at the bottom of scrollable cards */
+    .card-content.active::after {
+        content: '';
+        display: block;
+        position: sticky;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 20px;
+        background: linear-gradient(to top, rgba(25, 25, 25, 0.9), transparent);
+        pointer-events: none;
+        z-index: 2;
+        margin: 0 -15px -15px -15px;
+        border-radius: 0 0 8px 8px;
+    }
+}
+
+/* Extra small screens */
+@media (max-width: 360px) {
+    .telecaller-grid {
+        grid-template-columns: repeat(auto-fill, minmax(35px, 1fr));
+    }
+    
+    .card-content.active {
+        padding: 12px;
+    }
+    
+    .button {
+        padding: 10px 15px;
+        font-size: 0.95rem;
+    }
+    
+    /* Make action buttons more prominent to ensure visibility */
+    .action-buttons {
+        position: sticky;
+        bottom: 0;
+        background-color: rgba(25, 25, 25, 0.95);
+        padding: 10px 0;
+        margin: 15px -12px -12px -12px;
+        z-index: 3;
+        border-top: 1px solid #333;
     }
 }
 
@@ -383,6 +474,10 @@ input::placeholder {
     justify-content: space-between;
 }
 
+.client-info {
+    width: 100%;
+}
+
 .client-item:hover {
     background-color: #444;
 }
@@ -394,4 +489,111 @@ input::placeholder {
 .client-phone {
     color: #bbb;
     font-size: 0.9rem;
+}
+
+.client-details {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.price-tag {
+    background-color: #2a2a2a;
+    color: #f39c12;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.subscription-status {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.subscription-status.trial {
+    background-color: #3498db;
+    color: white;
+}
+
+.subscription-status.active {
+    background-color: #2ecc71;
+    color: white;
+}
+
+.subscription-status.expired {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.subscription-status.warning {
+    background-color: #f39c12;
+    color: white;
+}
+
+/* Subscription form controls */
+.subscription-controls {
+    margin-bottom: 20px;
+}
+
+.subscription-options {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.subscription-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #2a2a2a;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.subscription-option input[type="radio"] {
+    margin: 0;
+}
+
+.subscription-option label {
+    margin: 0;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.date-fields {
+    background-color: #292929;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.date-range {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.date-input {
+    flex: 1;
+}
+
+.date-input label {
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+    color: #bbb;
+}
+
+.date-input input[type="date"] {
+    width: 100%;
+    padding: 8px;
+    background-color: #333;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: white;
 }

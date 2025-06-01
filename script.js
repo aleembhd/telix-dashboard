@@ -56,17 +56,106 @@ function fetchClients() {
                 li.setAttribute('data-client-id', clientId);
                 li.onclick = function() { selectClient(clientId); };
                 
-                li.innerHTML = `
-                    <div class="client-name">${client.name}</div>
-                    <div class="client-phone">${client.phoneNumber}</div>
+                // Calculate subscription status and days left
+                const subscriptionInfo = getSubscriptionInfo(client);
+                
+                // Create inner HTML with client info
+                const clientInfoDiv = document.createElement('div');
+                clientInfoDiv.className = 'client-info';
+                
+                // Add client name and phone
+                clientInfoDiv.innerHTML = `
+                    <div class="client-name">${client.name || 'Unnamed Client'}</div>
+                    <div class="client-phone">${client.phoneNumber || 'No phone number'}</div>
                 `;
                 
+                // Add client details with pricing and subscription
+                const detailsDiv = document.createElement('div');
+                detailsDiv.className = 'client-details';
+                
+                // Add price tag if available
+                if (client.rate) {
+                    const priceTag = document.createElement('span');
+                    priceTag.className = 'price-tag';
+                    priceTag.textContent = `₹${client.rate}/telecaller`;
+                    detailsDiv.appendChild(priceTag);
+                }
+                
+                // Add subscription status
+                if (subscriptionInfo) {
+                    const statusTag = document.createElement('span');
+                    statusTag.className = `subscription-status ${subscriptionInfo.status}`;
+                    statusTag.textContent = subscriptionInfo.message;
+                    detailsDiv.appendChild(statusTag);
+                }
+                
+                // Add details div if it has children
+                if (detailsDiv.children.length > 0) {
+                    clientInfoDiv.appendChild(detailsDiv);
+                }
+                
+                li.appendChild(clientInfoDiv);
                 clientsList.appendChild(li);
             });
         })
         .catch(error => {
             console.error('Error fetching clients:', error);
         });
+}
+
+// Helper function to get subscription status and message
+function getSubscriptionInfo(client) {
+    if (!client) return null;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to beginning of day
+    
+    // Check if client has subscription data
+    if (client.subscriptionStatus) {
+        // Free trial
+        if (client.subscriptionStatus === 'trial') {
+            // Use only the consolidated date format
+            if (client.freetrialdate && client.freetrialdate.end) {
+                const trialEndDate = new Date(client.freetrialdate.end);
+                const daysLeft = Math.ceil((trialEndDate - today) / (1000 * 60 * 60 * 24));
+                
+                if (daysLeft < 0) {
+                    return { status: 'expired', message: 'Trial expired' };
+                } else if (daysLeft <= 3) {
+                    return { status: 'warning', message: `Trial: ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left` };
+                } else {
+                    return { status: 'trial', message: `Trial: ${daysLeft} days left` };
+                }
+            }
+            return { status: 'trial', message: 'Free trial' };
+        }
+        
+        // Active subscription
+        if (client.subscriptionStatus === 'active') {
+            // Use only the consolidated date format
+            if (client.subscriptiondate && client.subscriptiondate.end) {
+                const subscriptionEndDate = new Date(client.subscriptiondate.end);
+                const daysLeft = Math.ceil((subscriptionEndDate - today) / (1000 * 60 * 60 * 24));
+                
+                if (daysLeft < 0) {
+                    return { status: 'expired', message: 'Subscription expired' };
+                } else if (daysLeft <= 7) {
+                    return { status: 'warning', message: `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left` };
+                } else {
+                    return { status: 'active', message: `${daysLeft} days left` };
+                }
+            }
+            return { status: 'active', message: 'Active subscription' };
+        }
+        
+        // Expired subscription
+        if (client.subscriptionStatus === 'expired') {
+            return { status: 'expired', message: 'Expired' };
+        }
+    }
+    
+    // Default - no subscription data
+    return { status: 'expired', message: 'No subscription' };
 }
 
 // Convert number to word for telecaller keys (1 -> One, 2 -> Two, etc.)
@@ -330,6 +419,41 @@ function selectClient(clientId) {
                 // Populate form with client data
                 document.getElementById('updateClientName').value = clientData.name || '';
                 document.getElementById('updateClientPhone').value = clientData.phoneNumber || '';
+                
+                // Populate rate field
+                document.getElementById('updateClientRate').value = clientData.rate || '';
+                
+                // Set subscription status radio buttons
+                const status = clientData.subscriptionStatus || 'expired';
+                document.getElementById(`subscription${status.charAt(0).toUpperCase() + status.slice(1)}`).checked = true;
+                
+                // Populate trial date fields - use only consolidated format
+                if (clientData.freetrialdate) {
+                    document.getElementById('trialStartDate').value = formatDateForInput(clientData.freetrialdate.start);
+                    document.getElementById('trialEndDate').value = formatDateForInput(clientData.freetrialdate.end);
+                } else {
+                    // Set defaults if no trial dates available
+                    document.getElementById('trialStartDate').value = formatDateForInput(new Date());
+                    
+                    // Default to 14 days trial
+                    const defaultEndDate = new Date();
+                    defaultEndDate.setDate(defaultEndDate.getDate() + 14);
+                    document.getElementById('trialEndDate').value = formatDateForInput(defaultEndDate);
+                }
+                
+                // Populate subscription date fields - use only consolidated format
+                if (clientData.subscriptiondate) {
+                    document.getElementById('subscriptionStartDate').value = formatDateForInput(clientData.subscriptiondate.start);
+                    document.getElementById('subscriptionEndDate').value = formatDateForInput(clientData.subscriptiondate.end);
+                } else {
+                    // Set defaults if no subscription dates available
+                    document.getElementById('subscriptionStartDate').value = formatDateForInput(new Date());
+                    
+                    // Default to 90 days subscription
+                    const defaultEndDate = new Date();
+                    defaultEndDate.setDate(defaultEndDate.getDate() + 90);
+                    document.getElementById('subscriptionEndDate').value = formatDateForInput(defaultEndDate);
+                }
         
                 // Reset all buttons and prepare to assign states
                 resetTelecallerButtons('updateClientTelecallerGrid');
@@ -362,6 +486,9 @@ function selectClient(clientId) {
                 
                 // Store the client ID for update
                 document.getElementById('updateClientBtn').setAttribute('data-client-id', clientId);
+                
+                // Toggle visibility of date fields based on subscription status
+                updateDateFieldsVisibility(status);
             } else {
                 console.error('Client not found:', clientId);
                 alert('Client not found');
@@ -378,6 +505,36 @@ function selectClient(clientId) {
                 loadingElement.remove();
             }
         });
+}
+
+// Helper function to format Date object as YYYY-MM-DD (for date inputs)
+function formatDateForInput(dateStr) {
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// Function to show/hide date fields based on subscription status
+function updateDateFieldsVisibility(status) {
+    const trialContainer = document.getElementById('trialDateContainer');
+    const subscriptionContainer = document.getElementById('subscriptionDateContainer');
+    
+    // Default hide all date fields
+    trialContainer.style.display = 'none';
+    subscriptionContainer.style.display = 'none';
+    
+    // Show relevant date fields based on status
+    if (status === 'trial') {
+        trialContainer.style.display = 'block';
+    } else if (status === 'active') {
+        subscriptionContainer.style.display = 'block';
+    } else if (status === 'expired') {
+        // Show both when expired so user can choose which to update
+        trialContainer.style.display = 'block';
+        subscriptionContainer.style.display = 'block';
+    }
 }
 
 // Reset all telecaller buttons to available
@@ -437,7 +594,7 @@ function generateTelecallerButtons(containerId, limit) {
     else {
         // Clear and recreate all buttons
         container.innerHTML = '';
-        for (let i = 1; i <= (limit || 50); i++) {
+    for (let i = 1; i <= (limit || 50); i++) {
             const button = createTelecallerButton(i, containerId);
             container.appendChild(button);
         }
@@ -453,7 +610,7 @@ function generateTelecallerButtons(containerId, limit) {
 
 // Helper function to create a single telecaller button
 function createTelecallerButton(id, containerId) {
-    const button = document.createElement('button');
+        const button = document.createElement('button');
     button.className = 'telecaller-button available locked'; // Add 'locked' class by default
     button.setAttribute('data-telecaller-id', id);
     
@@ -461,58 +618,58 @@ function createTelecallerButton(id, containerId) {
     const textSpan = document.createElement('span');
     textSpan.textContent = id;
     button.appendChild(textSpan);
-    
-    // Add long-press event for credentials popup
-    addLongPressEvent(button, id);
-    
-    // Add click event to toggle selection
-    button.addEventListener('click', function() {
-        // Don't allow clicking frozen buttons
-        if (this.classList.contains('frozen')) return;
         
-        // For update client grid, require CAPTCHA verification
-        if (containerId === 'updateClientTelecallerGrid') {
-            const isCurrentlyAvailable = this.classList.contains('available');
-            const captcha = generateMathCaptcha(isCurrentlyAvailable); // Addition for selecting, subtraction for deselecting
+        // Add long-press event for credentials popup
+    addLongPressEvent(button, id);
+        
+        // Add click event to toggle selection
+        button.addEventListener('click', function() {
+            // Don't allow clicking frozen buttons
+            if (this.classList.contains('frozen')) return;
             
-            // Show the CAPTCHA alert
+            // For update client grid, require CAPTCHA verification
+            if (containerId === 'updateClientTelecallerGrid') {
+                const isCurrentlyAvailable = this.classList.contains('available');
+                const captcha = generateMathCaptcha(isCurrentlyAvailable); // Addition for selecting, subtraction for deselecting
+                
+                // Show the CAPTCHA alert
             const userAnswer = prompt(`Security Check: Please solve this math problem to ${isCurrentlyAvailable ? 'add' : 'remove'} telecaller #${id}\n\n${captcha.question}`);
-            
-            // Verify answer
-            if (userAnswer === null) {
-                // User cancelled
-                return;
+                
+                // Verify answer
+                if (userAnswer === null) {
+                    // User cancelled
+                    return;
+                }
+                
+                const numAnswer = parseInt(userAnswer.trim());
+                if (isNaN(numAnswer) || numAnswer !== captcha.answer) {
+                    alert('Incorrect answer. Telecaller was not ' + (isCurrentlyAvailable ? 'added' : 'removed') + '.');
+                    return;
+                }
+                
+                // Correct answer, proceed with toggle
+                this.classList.toggle('selected');
+                this.classList.toggle('available');
+                
+                const selectedButtons = document.querySelectorAll('#updateClientTelecallerGrid .telecaller-button.selected');
+                const selectedIds = Array.from(selectedButtons).map(btn => 
+                    parseInt(btn.getAttribute('data-telecaller-id'))
+                );
+                
+                updateSelectedTelecallersList(selectedIds);
+                
+                // Update telecaller counts for update client
+                updateTelecallerCounts('existingClientsContent');
+            } else {
+                // For new client grid, no CAPTCHA needed
+                this.classList.toggle('selected');
+                this.classList.toggle('available');
+                
+                // Update telecaller counts for new client
+                updateTelecallerCounts('addClientContent');
             }
-            
-            const numAnswer = parseInt(userAnswer.trim());
-            if (isNaN(numAnswer) || numAnswer !== captcha.answer) {
-                alert('Incorrect answer. Telecaller was not ' + (isCurrentlyAvailable ? 'added' : 'removed') + '.');
-                return;
-            }
-            
-            // Correct answer, proceed with toggle
-            this.classList.toggle('selected');
-            this.classList.toggle('available');
-            
-            const selectedButtons = document.querySelectorAll('#updateClientTelecallerGrid .telecaller-button.selected');
-            const selectedIds = Array.from(selectedButtons).map(btn => 
-                parseInt(btn.getAttribute('data-telecaller-id'))
-            );
-            
-            updateSelectedTelecallersList(selectedIds);
-            
-            // Update telecaller counts for update client
-            updateTelecallerCounts('existingClientsContent');
-        } else {
-            // For new client grid, no CAPTCHA needed
-            this.classList.toggle('selected');
-            this.classList.toggle('available');
-            
-            // Update telecaller counts for new client
-            updateTelecallerCounts('addClientContent');
-        }
-    });
-    
+        });
+        
     return button;
 }
 
@@ -552,6 +709,33 @@ function migrateExistingClients() {
                         // We'll create a new client with correct ID format below
                         client.includedButtons = buttonArray;
                     }
+                }
+                
+                // Convert old date fields to new consolidated format
+                if (client.trialStartDate || client.trialEndDate) {
+                    // Create the consolidated trial date field
+                    updates['clients/' + clientId + '/freetrialdate'] = {
+                        start: client.trialStartDate || null,
+                        end: client.trialEndDate || null
+                    };
+                    
+                    // Remove old fields
+                    updates['clients/' + clientId + '/trialStartDate'] = null;
+                    updates['clients/' + clientId + '/trialEndDate'] = null;
+                    needsUpdate = true;
+                }
+                
+                if (client.subscriptionStartDate || client.subscriptionEndDate) {
+                    // Create the consolidated subscription date field
+                    updates['clients/' + clientId + '/subscriptiondate'] = {
+                        start: client.subscriptionStartDate || null,
+                        end: client.subscriptionEndDate || null
+                    };
+                    
+                    // Remove old fields
+                    updates['clients/' + clientId + '/subscriptionStartDate'] = null;
+                    updates['clients/' + clientId + '/subscriptionEndDate'] = null;
+                    needsUpdate = true;
                 }
                 
                 // If client ID doesn't match required format, create a new one with correct format
@@ -606,6 +790,44 @@ document.addEventListener('DOMContentLoaded', function() {
     // Fetch existing clients from Firebase
     fetchClients();
     
+    // Set up subscription status change handlers
+    document.querySelectorAll('input[name="subscriptionStatus"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            updateDateFieldsVisibility(this.value);
+        });
+    });
+    
+    // Set up new client subscription status change handlers
+    document.querySelectorAll('input[name="newClientSubscriptionStatus"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const trialContainer = document.getElementById('newClientTrialDateContainer');
+            const subscriptionContainer = document.getElementById('newClientSubscriptionDateContainer');
+            
+            // Show/hide based on selection
+            if (this.value === 'trial') {
+                trialContainer.style.display = 'block';
+                subscriptionContainer.style.display = 'none';
+            } else {
+                trialContainer.style.display = 'none';
+                subscriptionContainer.style.display = 'block';
+            }
+        });
+    });
+    
+    // Initialize default dates for new client
+    const today = new Date();
+    document.getElementById('newClientTrialStartDate').valueAsDate = today;
+    
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 days trial
+    document.getElementById('newClientTrialEndDate').valueAsDate = trialEndDate;
+    
+    document.getElementById('newClientSubscriptionStartDate').valueAsDate = today;
+    
+    const subscriptionEndDate = new Date();
+    subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 90); // 90 days subscription
+    document.getElementById('newClientSubscriptionEndDate').valueAsDate = subscriptionEndDate;
+    
     // Fetch telecaller settings and generate telecaller buttons with assigned ones frozen
     firebase.database().ref('telecaller_settings').once('value')
         .then(snapshot => {
@@ -652,83 +874,81 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add client button
     document.getElementById('addClientBtn').addEventListener('click', function() {
+        // Get form values
+        const clientName = document.getElementById('clientName').value;
+        const clientPhone = document.getElementById('clientPhone').value;
+        const clientRate = document.getElementById('clientRate').value;
+        
+        // Get subscription status and dates
+        const subscriptionStatus = document.querySelector('input[name="newClientSubscriptionStatus"]:checked').value;
+        const trialStartDate = document.getElementById('newClientTrialStartDate').value;
+        const trialEndDate = document.getElementById('newClientTrialEndDate').value;
+        const subscriptionStartDate = document.getElementById('newClientSubscriptionStartDate').value;
+        const subscriptionEndDate = document.getElementById('newClientSubscriptionEndDate').value;
+        
         // Get selected telecaller IDs
         const selectedButtons = document.querySelectorAll('#newClientTelecallerGrid .telecaller-button.selected');
         const includedButtons = Array.from(selectedButtons).map(button => 
             parseInt(button.getAttribute('data-telecaller-id'))
         );
         
-        // Get form values
-        const clientName = document.getElementById('clientName').value;
-        const clientPhone = document.getElementById('clientPhone').value;
-        
         // Validate form
         if (!clientName || !clientPhone || includedButtons.length === 0) {
-            alert('Please fill in all fields and select at least one telecaller');
+            alert('Please fill in all required fields and select at least one telecaller');
             return;
         }
         
-        // Get the next client ID (client1, client2, etc.)
-        firebase.database().ref('clients').once('value')
-            .then(snapshot => {
-                const clients = snapshot.val() || {};
-                let maxClientNumber = 0;
-                
-                // Find the highest client number
-                Object.keys(clients).forEach(key => {
-                    if (key.startsWith('client')) {
-                        const clientNumber = parseInt(key.replace('client', ''));
-                        if (!isNaN(clientNumber) && clientNumber > maxClientNumber) {
-                            maxClientNumber = clientNumber;
-                        }
-                    }
-                });
-                
-                // Create the new client ID
-                const clientId = 'client' + (maxClientNumber + 1);
-                
-                // Create a proper array structure for includedButtons
-                const clientData = {
-                    name: clientName,
-                    phoneNumber: clientPhone
-                };
-                
-                // First save the client without includedButtons
-                firebase.database().ref('clients/' + clientId).set(clientData)
-                    .then(() => {
-                        // Then add includedButtons as a separate operation to maintain array format
-                        const updates = {};
-                        updates['clients/' + clientId + '/includedButtons'] = includedButtons;
-                        
-                        return firebase.database().ref().update(updates);
-                    })
-                    .then(() => {
-                        alert('Client added successfully!');
+        const clientData = {
+            name: clientName,
+            phoneNumber: clientPhone,
+            includedButtons: includedButtons,
+            rate: clientRate || null,
+            subscriptionStatus: subscriptionStatus,
+            lastUpdated: new Date().toISOString()
+        };
         
-                        // Reset form
-                        document.getElementById('clientName').value = '';
-                        document.getElementById('clientPhone').value = '';
-                        resetTelecallerButtons('newClientTelecallerGrid');
-                        
-                        // Collapse the card
-                        document.getElementById('addClientContent').classList.remove('active');
-                        
-                        // Refresh the clients list
-                        fetchClients();
-                        
-                        // Update global assigned telecallers
-                        fetchAllAssignedTelecallers().then(() => {
-                            // Update the monitor grid to reflect new assignments
-                            updateMonitorTelecallerGrid();
-                        });
-                    })
-                    .catch((error) => {
-                        console.error('Error adding client:', error);
-                        alert('Error adding client: ' + error.message);
-                    });
+        // Add date fields based on subscription status using only the new consolidated format
+        if (subscriptionStatus === 'trial') {
+            // Store consolidated freetrialdate field (contains both start and end dates)
+            clientData.freetrialdate = {
+                start: trialStartDate,
+                end: trialEndDate
+            };
+        } else if (subscriptionStatus === 'active') {
+            // Store consolidated subscriptiondate field (contains both start and end dates)
+            clientData.subscriptiondate = {
+                start: subscriptionStartDate,
+                end: subscriptionEndDate
+            };
+        }
+        
+        // Push the new client to Firebase
+        firebase.database().ref('clients').push(clientData)
+            .then((result) => {
+                alert('Client added successfully!');
+
+                // Clear the form
+                document.getElementById('clientName').value = '';
+                document.getElementById('clientPhone').value = '';
+                document.getElementById('clientRate').value = '';
+                
+                // Reset the telecaller buttons
+                resetTelecallerButtons('newClientTelecallerGrid');
+                
+                // Update telecaller counts
+                updateTelecallerCounts('addClientContent');
+                
+                // Refresh the clients list
+                fetchClients();
+                
+                // Update global assigned telecallers
+                fetchAllAssignedTelecallers().then(() => {
+                    // Freeze assigned telecaller buttons in the new client grid
+                    freezeAssignedTelecallerButtons();
+                });
             })
-            .catch(error => {
-                console.error('Error getting client count:', error);
+            .catch((error) => {
+                console.error('Error adding client:', error);
                 alert('Error adding client: ' + error.message);
             });
     });
@@ -751,18 +971,51 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get form values
         const clientName = document.getElementById('updateClientName').value;
         const clientPhone = document.getElementById('updateClientPhone').value;
+        const clientRate = document.getElementById('updateClientRate').value;
+        
+        // Get subscription status
+        const subscriptionStatus = document.querySelector('input[name="subscriptionStatus"]:checked')?.value || 'expired';
+        
+        // Get date values
+        const trialStartDate = document.getElementById('trialStartDate').value;
+        const trialEndDate = document.getElementById('trialEndDate').value;
+        const subscriptionStartDate = document.getElementById('subscriptionStartDate').value;
+        const subscriptionEndDate = document.getElementById('subscriptionEndDate').value;
         
         // Validate form
         if (!clientName || !clientPhone || includedButtons.length === 0) {
-            alert('Please fill in all fields and select at least one telecaller');
+            alert('Please fill in all required fields and select at least one telecaller');
             return;
         }
         
-        // First update the basic client data
-        firebase.database().ref('clients/' + clientId).update({
+        // Set up client data object with all values
+        const clientData = {
             name: clientName,
-            phoneNumber: clientPhone
-        })
+            phoneNumber: clientPhone,
+            rate: clientRate || null,
+            subscriptionStatus: subscriptionStatus,
+            lastUpdated: new Date().toISOString()
+        };
+
+        // Add date fields based on subscription status using only the new consolidated format
+        if (subscriptionStatus === 'trial' || subscriptionStatus === 'expired') {
+            // Store consolidated freetrialdate field
+            clientData.freetrialdate = {
+                start: trialStartDate,
+                end: trialEndDate
+            };
+        }
+        
+        if (subscriptionStatus === 'active' || subscriptionStatus === 'expired') {
+            // Store consolidated subscriptiondate field
+            clientData.subscriptiondate = {
+                start: subscriptionStartDate,
+                end: subscriptionEndDate
+            };
+        }
+        
+        // First update the client data
+        firebase.database().ref('clients/' + clientId).update(clientData)
         .then(() => {
             // Then update includedButtons separately to maintain array format
             const updates = {};
@@ -1176,10 +1429,10 @@ function generateMonitorTelecallerGrid(limit) {
     }
     // If starting from scratch (no buttons exist yet)
     else {
-        // Clear existing content
-        container.innerHTML = '';
-        
-        for (let i = 1; i <= limit; i++) {
+    // Clear existing content
+    container.innerHTML = '';
+    
+    for (let i = 1; i <= limit; i++) {
             const button = createMonitorTelecallerButton(i);
             container.appendChild(button);
         }
@@ -1191,7 +1444,7 @@ function generateMonitorTelecallerGrid(limit) {
 
 // Helper function to create a monitor telecaller button
 function createMonitorTelecallerButton(id) {
-    const button = document.createElement('button');
+        const button = document.createElement('button');
     button.className = 'telecaller-button available locked'; // Add 'locked' class by default
     button.setAttribute('data-telecaller-id', id);
     
@@ -1199,15 +1452,15 @@ function createMonitorTelecallerButton(id) {
     const textSpan = document.createElement('span');
     textSpan.textContent = id;
     button.appendChild(textSpan);
-    
-    // Add long-press event for credentials popup
+        
+        // Add long-press event for credentials popup
     addLongPressEvent(button, id);
-    
-    // Add click event to show assignment details
-    button.addEventListener('click', function() {
+        
+        // Add click event to show assignment details
+        button.addEventListener('click', function() {
         showTelecallerAssignmentDetails(id);
-    });
-    
+        });
+        
     return button;
 }
 
@@ -1217,8 +1470,8 @@ function updateMonitorTelecallerGrid() {
     const buttons = document.querySelectorAll('#monitorTelecallerGrid .telecaller-button');
     buttons.forEach(button => {
         if (button.classList.contains('frozen')) {
-            button.classList.remove('frozen');
-            button.classList.add('available');
+        button.classList.remove('frozen');
+        button.classList.add('available');
         }
     });
     
@@ -1397,19 +1650,19 @@ function showCredentialsPopup(telecallerId) {
     const adminPassword = 'admin@123';
     
     // Set values in the form with default values
-    document.getElementById('telecallerEmail').value = telecallerEmail;
-    document.getElementById('telecallerPassword').value = telecallerPassword;
-    document.getElementById('adminEmail').value = adminEmail;
-    document.getElementById('adminPassword').value = adminPassword;
-    
+            document.getElementById('telecallerEmail').value = telecallerEmail;
+            document.getElementById('telecallerPassword').value = telecallerPassword;
+            document.getElementById('adminEmail').value = adminEmail;
+            document.getElementById('adminPassword').value = adminPassword;
+            
     // Show the modal
-    const modal = document.getElementById('credentialsModal');
-    modal.style.display = 'flex';
-    
-    // Setup save button event
-    document.getElementById('saveCredentialsBtn').onclick = function() {
-        saveCredentials(telecallerId);
-    };
+            const modal = document.getElementById('credentialsModal');
+            modal.style.display = 'flex';
+            
+            // Setup save button event
+            document.getElementById('saveCredentialsBtn').onclick = function() {
+                saveCredentials(telecallerId);
+            };
 }
 
 // Close the credentials modal
@@ -1443,17 +1696,17 @@ function saveCredentials(telecallerId) {
     
     // Create authentication accounts directly without saving to Realtime Database
     checkAndCreateAuthUser(telecallerEmail, telecallerPassword)
-        .then(telecallerStatus => {
+            .then(telecallerStatus => {
             // Check if this is a new registration or existing account
             statusData.telecaller.isNew = telecallerStatus === "Successfully registered new account";
             statusData.telecaller.status = telecallerStatus;
-            return checkAndCreateAuthUser(adminEmail, adminPassword);
-        })
-        .then(adminStatus => {
+                return checkAndCreateAuthUser(adminEmail, adminPassword);
+            })
+            .then(adminStatus => {
             // Check if this is a new registration or existing account
             statusData.admin.isNew = adminStatus === "Successfully registered new account";
             statusData.admin.status = adminStatus;
-            
+                
             // Create professional alert message with symbols
             const successSymbol = "✅";
             const infoSymbol = "ℹ️";
@@ -1475,20 +1728,20 @@ function saveCredentials(telecallerId) {
             
             // Show enhanced alert
             alert(alertMessage);
-            closeCredentialsModal();
-            
-            // Update telecaller button style to show it's registered
-            updateTelecallerButtonStyle(telecallerId, true);
-        })
-        .catch(error => {
-            console.error('Error saving credentials:', error);
+                closeCredentialsModal();
+                
+                // Update telecaller button style to show it's registered
+                updateTelecallerButtonStyle(telecallerId, true);
+    })
+    .catch(error => {
+        console.error('Error saving credentials:', error);
             alert('❌ Error: ' + error.message);
-        })
-        .finally(() => {
-            // Reset button state
-            saveButton.textContent = originalButtonText;
-            saveButton.disabled = false;
-        });
+    })
+    .finally(() => {
+        // Reset button state
+        saveButton.textContent = originalButtonText;
+        saveButton.disabled = false;
+    });
 }
 
 // Delete credentials from Firebase
@@ -1511,25 +1764,25 @@ function deleteCredentials(telecallerId) {
     
     // Create array to track status messages
     const statusMessages = [];
-    
-    // Try to delete from Authentication by signing in and deleting account
+            
+            // Try to delete from Authentication by signing in and deleting account
     deleteAuthUser(telecallerEmail)
-        .then(telecallerStatus => {
-            statusMessages.push(`Telecaller: ${telecallerStatus}`);
-            return deleteAuthUser(adminEmail);
-        })
-        .then(adminStatus => {
-            statusMessages.push(`Admin: ${adminStatus}`);
+                .then(telecallerStatus => {
+                    statusMessages.push(`Telecaller: ${telecallerStatus}`);
+                    return deleteAuthUser(adminEmail);
+                })
+                .then(adminStatus => {
+                    statusMessages.push(`Admin: ${adminStatus}`);
             
             // Remove registration status from Firebase Realtime Database
             firebase.database().ref(`registered_telecallers/${telecallerId}`).remove();
-            
-            // Show success message
-            alert(`Credentials deleted!\n\n${statusMessages.join('\n')}`);
-            closeCredentialsModal();
-            
-            // Update telecaller button style to show it's unregistered
-            updateTelecallerButtonStyle(telecallerId, false);
+                    
+                    // Show success message
+                    alert(`Credentials deleted!\n\n${statusMessages.join('\n')}`);
+                    closeCredentialsModal();
+                    
+                    // Update telecaller button style to show it's unregistered
+                    updateTelecallerButtonStyle(telecallerId, false);
         })
         .catch(error => {
             console.error('Error deleting credentials:', error);

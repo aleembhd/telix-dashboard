@@ -60,6 +60,54 @@
                     <input type="tel" id="clientPhone" placeholder="Enter phone number">
                 </div>
 
+                <!-- New fields for pricing -->
+                <div class="form-group">
+                    <label for="clientRate">Rate per Telecaller (₹)</label>
+                    <input type="number" id="clientRate" placeholder="Enter rate in rupees" min="0" step="50">
+                </div>
+
+                <div class="form-group subscription-controls">
+                    <label>Subscription Status</label>
+                    <div class="subscription-options">
+                        <div class="subscription-option">
+                            <input type="radio" id="newClientSubscriptionTrial" name="newClientSubscriptionStatus" value="trial" checked>
+                            <label for="newClientSubscriptionTrial">Free Trial</label>
+                        </div>
+                        <div class="subscription-option">
+                            <input type="radio" id="newClientSubscriptionActive" name="newClientSubscriptionStatus" value="active">
+                            <label for="newClientSubscriptionActive">Active Subscription</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group date-fields" id="newClientTrialDateContainer">
+                    <label for="newClientTrialStartDate">Trial Period</label>
+                    <div class="date-range">
+                        <div class="date-input">
+                            <label for="newClientTrialStartDate">Start</label>
+                            <input type="date" id="newClientTrialStartDate">
+                        </div>
+                        <div class="date-input">
+                            <label for="newClientTrialEndDate">End</label>
+                            <input type="date" id="newClientTrialEndDate">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group date-fields" id="newClientSubscriptionDateContainer" style="display: none;">
+                    <label for="newClientSubscriptionStartDate">Subscription Period</label>
+                    <div class="date-range">
+                        <div class="date-input">
+                            <label for="newClientSubscriptionStartDate">Start</label>
+                            <input type="date" id="newClientSubscriptionStartDate">
+                        </div>
+                        <div class="date-input">
+                            <label for="newClientSubscriptionEndDate">End</label>
+                            <input type="date" id="newClientSubscriptionEndDate">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label>Assign Telecallers</label>
                     
@@ -108,6 +156,18 @@
             <div class="card-content" id="existingClientsContent">
                 <ul id="existingClientsList">
                     <!-- Client list will be populated here dynamically -->
+                     Enhanced client item structure example:
+                    <li class="client-item" data-client-id="client1">
+                        <div class="client-info">
+                            <div class="client-name">Client Name</div>
+                            <div class="client-phone">Phone Number</div>
+                            <div class="client-details">
+                                <span class="price-tag">₹250/telecaller</span>
+                                <span class="subscription-status trial">Trial: 5 days left</span>
+                            </div>
+                        </div>
+                    </li>
+                    
                 </ul>
                 
                 <div id="clientUpdateForm" style="display: none; margin-top: 20px;">
@@ -119,6 +179,58 @@
                     <div class="form-group">
                         <label for="updateClientPhone">Client Phone Number</label>
                         <input type="tel" id="updateClientPhone" placeholder="Enter phone number">
+                    </div>
+
+                    <!-- New fields for pricing and subscription -->
+                    <div class="form-group">
+                        <label for="updateClientRate">Rate per Telecaller (₹)</label>
+                        <input type="number" id="updateClientRate" placeholder="Enter rate in rupees" min="0" step="50">
+                    </div>
+
+                    <div class="form-group subscription-controls">
+                        <label>Subscription Status</label>
+                        <div class="subscription-options">
+                            <div class="subscription-option">
+                                <input type="radio" id="subscriptionTrial" name="subscriptionStatus" value="trial">
+                                <label for="subscriptionTrial">Free Trial</label>
+                            </div>
+                            <div class="subscription-option">
+                                <input type="radio" id="subscriptionActive" name="subscriptionStatus" value="active">
+                                <label for="subscriptionActive">Active Subscription</label>
+                            </div>
+                            <div class="subscription-option">
+                                <input type="radio" id="subscriptionExpired" name="subscriptionStatus" value="expired">
+                                <label for="subscriptionExpired">Expired</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group date-fields" id="trialDateContainer">
+                        <label for="trialStartDate">Trial Period</label>
+                        <div class="date-range">
+                            <div class="date-input">
+                                <label for="trialStartDate">Start</label>
+                                <input type="date" id="trialStartDate">
+                            </div>
+                            <div class="date-input">
+                                <label for="trialEndDate">End</label>
+                                <input type="date" id="trialEndDate">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group date-fields" id="subscriptionDateContainer">
+                        <label for="subscriptionStartDate">Subscription Period</label>
+                        <div class="date-range">
+                            <div class="date-input">
+                                <label for="subscriptionStartDate">Start</label>
+                                <input type="date" id="subscriptionStartDate">
+                            </div>
+                            <div class="date-input">
+                                <label for="subscriptionEndDate">End</label>
+                                <input type="date" id="subscriptionEndDate">
+                            </div>
+                        </div>
                     </div>
 
                     <div class="form-group">
