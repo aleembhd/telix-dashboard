@@ -211,8 +211,23 @@ let globalAssignedTelecallers = new Set();
 
 // Collect all assigned telecaller buttons and freeze them in the Add New Client card
 function freezeAssignedTelecallerButtons() {
-    // First reset all buttons to available state
-    resetTelecallerButtons('newClientTelecallerGrid');
+    // First reset all buttons to available state but preserve their locked/unlocked status
+    const buttons = document.querySelectorAll('#newClientTelecallerGrid .telecaller-button');
+    buttons.forEach(button => {
+        // Store the locked state
+        const isLocked = button.classList.contains('locked');
+        
+        // Reset to available
+        button.classList.remove('selected', 'frozen');
+        button.classList.add('available');
+        
+        // Restore locked state if it was locked
+        if (isLocked) {
+            button.classList.add('locked');
+        } else {
+            button.classList.remove('locked');
+        }
+    });
     
     // Use the globally stored assigned telecallers
     console.log('Using globally stored assigned telecallers:', Array.from(globalAssignedTelecallers));
@@ -369,8 +384,17 @@ function selectClient(clientId) {
 function resetTelecallerButtons(containerId) {
     const buttons = document.querySelectorAll(`#${containerId} .telecaller-button`);
     buttons.forEach(button => {
+        // Store locked state
+        const isLocked = button.classList.contains('locked');
+        
+        // Reset classes
         button.classList.remove('selected', 'frozen');
         button.classList.add('available');
+        
+        // Restore locked state if needed
+        if (isLocked) {
+            button.classList.add('locked');
+        }
     });
 }
 
@@ -388,69 +412,35 @@ function selectTelecallerButtons(containerId, telecallerIds) {
 // Generate telecaller buttons (1-50)
 function generateTelecallerButtons(containerId, limit) {
     const container = document.getElementById(containerId);
-    container.innerHTML = '';
+    const currentButtons = Array.from(container.querySelectorAll('.telecaller-button'));
+    const currentCount = currentButtons.length;
     
-    for (let i = 1; i <= (limit || 50); i++) {
-        const button = document.createElement('button');
-        button.className = 'telecaller-button available';
-        button.setAttribute('data-telecaller-id', i);
-        button.textContent = i;
-        
-        // Set all buttons initially to light grey (opacity 0.5)
-        button.style.opacity = '0.5';
-        
-        // Add long-press event for credentials popup
-        addLongPressEvent(button, i);
-        
-        // Add click event to toggle selection
-        button.addEventListener('click', function() {
-            // Don't allow clicking frozen buttons
-            if (this.classList.contains('frozen')) return;
-            
-            // For update client grid, require CAPTCHA verification
-            if (containerId === 'updateClientTelecallerGrid') {
-                const isCurrentlyAvailable = this.classList.contains('available');
-                const captcha = generateMathCaptcha(isCurrentlyAvailable); // Addition for selecting, subtraction for deselecting
-                
-                // Show the CAPTCHA alert
-                const userAnswer = prompt(`Security Check: Please solve this math problem to ${isCurrentlyAvailable ? 'add' : 'remove'} telecaller #${i}\n\n${captcha.question}`);
-                
-                // Verify answer
-                if (userAnswer === null) {
-                    // User cancelled
-                    return;
-                }
-                
-                const numAnswer = parseInt(userAnswer.trim());
-                if (isNaN(numAnswer) || numAnswer !== captcha.answer) {
-                    alert('Incorrect answer. Telecaller was not ' + (isCurrentlyAvailable ? 'added' : 'removed') + '.');
-                    return;
-                }
-                
-                // Correct answer, proceed with toggle
-                this.classList.toggle('selected');
-                this.classList.toggle('available');
-                
-                const selectedButtons = document.querySelectorAll('#updateClientTelecallerGrid .telecaller-button.selected');
-                const selectedIds = Array.from(selectedButtons).map(btn => 
-                    parseInt(btn.getAttribute('data-telecaller-id'))
-                );
-                
-                updateSelectedTelecallersList(selectedIds);
-                
-                // Update telecaller counts for update client
-                updateTelecallerCounts('existingClientsContent');
-            } else {
-                // For new client grid, no CAPTCHA needed
-                this.classList.toggle('selected');
-                this.classList.toggle('available');
-                
-                // Update telecaller counts for new client
-                updateTelecallerCounts('addClientContent');
+    // If we're increasing the limit, only add new buttons
+    if (currentCount > 0 && limit >= currentCount) {
+        // Add only the new buttons needed (from currentCount+1 to limit)
+        for (let i = currentCount + 1; i <= limit; i++) {
+            const button = createTelecallerButton(i, containerId);
+            container.appendChild(button);
+        }
+    } 
+    // If we're decreasing the limit, keep existing buttons within the limit and remove excess ones
+    else if (currentCount > 0 && limit < currentCount) {
+        // Remove buttons that exceed the new limit
+        currentButtons.forEach(button => {
+            const buttonId = parseInt(button.getAttribute('data-telecaller-id'));
+            if (buttonId > limit) {
+                button.remove();
             }
         });
-        
-        container.appendChild(button);
+    }
+    // If starting from scratch (no buttons exist yet)
+    else {
+        // Clear and recreate all buttons
+        container.innerHTML = '';
+        for (let i = 1; i <= (limit || 50); i++) {
+            const button = createTelecallerButton(i, containerId);
+            container.appendChild(button);
+        }
     }
     
     // Update initial counts
@@ -459,6 +449,71 @@ function generateTelecallerButtons(containerId, limit) {
     } else {
         updateTelecallerCounts('existingClientsContent');
     }
+}
+
+// Helper function to create a single telecaller button
+function createTelecallerButton(id, containerId) {
+    const button = document.createElement('button');
+    button.className = 'telecaller-button available locked'; // Add 'locked' class by default
+    button.setAttribute('data-telecaller-id', id);
+    
+    // Wrap the text in a span for better z-index control
+    const textSpan = document.createElement('span');
+    textSpan.textContent = id;
+    button.appendChild(textSpan);
+    
+    // Add long-press event for credentials popup
+    addLongPressEvent(button, id);
+    
+    // Add click event to toggle selection
+    button.addEventListener('click', function() {
+        // Don't allow clicking frozen buttons
+        if (this.classList.contains('frozen')) return;
+        
+        // For update client grid, require CAPTCHA verification
+        if (containerId === 'updateClientTelecallerGrid') {
+            const isCurrentlyAvailable = this.classList.contains('available');
+            const captcha = generateMathCaptcha(isCurrentlyAvailable); // Addition for selecting, subtraction for deselecting
+            
+            // Show the CAPTCHA alert
+            const userAnswer = prompt(`Security Check: Please solve this math problem to ${isCurrentlyAvailable ? 'add' : 'remove'} telecaller #${id}\n\n${captcha.question}`);
+            
+            // Verify answer
+            if (userAnswer === null) {
+                // User cancelled
+                return;
+            }
+            
+            const numAnswer = parseInt(userAnswer.trim());
+            if (isNaN(numAnswer) || numAnswer !== captcha.answer) {
+                alert('Incorrect answer. Telecaller was not ' + (isCurrentlyAvailable ? 'added' : 'removed') + '.');
+                return;
+            }
+            
+            // Correct answer, proceed with toggle
+            this.classList.toggle('selected');
+            this.classList.toggle('available');
+            
+            const selectedButtons = document.querySelectorAll('#updateClientTelecallerGrid .telecaller-button.selected');
+            const selectedIds = Array.from(selectedButtons).map(btn => 
+                parseInt(btn.getAttribute('data-telecaller-id'))
+            );
+            
+            updateSelectedTelecallersList(selectedIds);
+            
+            // Update telecaller counts for update client
+            updateTelecallerCounts('existingClientsContent');
+        } else {
+            // For new client grid, no CAPTCHA needed
+            this.classList.toggle('selected');
+            this.classList.toggle('available');
+            
+            // Update telecaller counts for new client
+            updateTelecallerCounts('addClientContent');
+        }
+    });
+    
+    return button;
 }
 
 // Migrate existing clients to new format
@@ -743,6 +798,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('updateTelecallerLimitBtn').addEventListener('click', function() {
         const limitInput = document.getElementById('telecallerLimit');
         const newLimit = parseInt(limitInput.value);
+        const currentLimit = parseInt(document.getElementById('currentTelecallerLimit').textContent) || 50;
         
         if (isNaN(newLimit) || newLimit < 1) {
             alert('Please enter a valid telecaller limit (minimum 1)');
@@ -765,15 +821,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Collapse the card
                 document.getElementById('telecallerSettingsContent').classList.remove('active');
                 
-                // Regenerate telecaller buttons with new limit
+                // Generate or update telecaller buttons with new limit
                 generateTelecallerButtons('newClientTelecallerGrid', newLimit);
                 generateTelecallerButtons('updateClientTelecallerGrid', newLimit);
                 
-                // Regenerate monitor grid with new limit
+                // Generate or update monitor grid with new limit
                 generateMonitorTelecallerGrid(newLimit);
                 
                 // Pre-freeze assigned buttons
                 freezeAssignedTelecallerButtons();
+                
+                // Check credentials only for newly added buttons
+                if (newLimit > currentLimit) {
+                    for (let i = currentLimit + 1; i <= newLimit; i++) {
+                        checkTelecallerCredentials(i);
+                    }
+                }
+                
+                // If decreasing limit, also update the global assigned telecallers set
+                if (newLimit < currentLimit) {
+                    // Remove any assigned telecallers that exceed the new limit
+                    Array.from(globalAssignedTelecallers).forEach(id => {
+                        if (id > newLimit) {
+                            globalAssignedTelecallers.delete(id);
+                        }
+                    });
+                }
             })
             .catch((error) => {
                 console.error('Error updating telecaller settings:', error);
@@ -1080,41 +1153,73 @@ function showInstallPromotion() {
 // Generate the monitor telecaller grid with buttons showing assignment status
 function generateMonitorTelecallerGrid(limit) {
     const container = document.getElementById('monitorTelecallerGrid');
+    const currentButtons = Array.from(container.querySelectorAll('.telecaller-button'));
+    const currentCount = currentButtons.length;
     
-    // Clear existing content
-    container.innerHTML = '';
-    
-    for (let i = 1; i <= limit; i++) {
-        const button = document.createElement('button');
-        button.className = 'telecaller-button available';
-        button.setAttribute('data-telecaller-id', i);
-        button.textContent = i;
-        
-        // Set all buttons initially to light grey (opacity 0.5)
-        button.style.opacity = '0.5';
-        
-        // Add long-press event for credentials popup
-        addLongPressEvent(button, i);
-        
-        // Add click event to show assignment details
-        button.addEventListener('click', function() {
-            showTelecallerAssignmentDetails(i);
+    // If we're increasing the limit, only add new buttons
+    if (currentCount > 0 && limit >= currentCount) {
+        // Add only the new buttons needed (from currentCount+1 to limit)
+        for (let i = currentCount + 1; i <= limit; i++) {
+            const button = createMonitorTelecallerButton(i);
+            container.appendChild(button);
+        }
+    }
+    // If we're decreasing the limit, keep existing buttons within the limit and remove excess ones
+    else if (currentCount > 0 && limit < currentCount) {
+        // Remove buttons that exceed the new limit
+        currentButtons.forEach(button => {
+            const buttonId = parseInt(button.getAttribute('data-telecaller-id'));
+            if (buttonId > limit) {
+                button.remove();
+            }
         });
+    }
+    // If starting from scratch (no buttons exist yet)
+    else {
+        // Clear existing content
+        container.innerHTML = '';
         
-        container.appendChild(button);
+        for (let i = 1; i <= limit; i++) {
+            const button = createMonitorTelecallerButton(i);
+            container.appendChild(button);
+        }
     }
     
     // Update the grid with current assignments
     updateMonitorTelecallerGrid();
 }
 
+// Helper function to create a monitor telecaller button
+function createMonitorTelecallerButton(id) {
+    const button = document.createElement('button');
+    button.className = 'telecaller-button available locked'; // Add 'locked' class by default
+    button.setAttribute('data-telecaller-id', id);
+    
+    // Wrap the text in a span for better z-index control
+    const textSpan = document.createElement('span');
+    textSpan.textContent = id;
+    button.appendChild(textSpan);
+    
+    // Add long-press event for credentials popup
+    addLongPressEvent(button, id);
+    
+    // Add click event to show assignment details
+    button.addEventListener('click', function() {
+        showTelecallerAssignmentDetails(id);
+    });
+    
+    return button;
+}
+
 // Update the monitor telecaller grid to reflect current assignments
 function updateMonitorTelecallerGrid() {
-    // Reset all buttons to available state
+    // Reset all buttons to available state, but don't remove locked class
     const buttons = document.querySelectorAll('#monitorTelecallerGrid .telecaller-button');
     buttons.forEach(button => {
-        button.classList.remove('frozen');
-        button.classList.add('available');
+        if (button.classList.contains('frozen')) {
+            button.classList.remove('frozen');
+            button.classList.add('available');
+        }
     });
     
     // Mark assigned telecallers
@@ -1134,6 +1239,22 @@ function updateMonitorTelecallerGrid() {
     document.getElementById('totalTelecallerCount').textContent = totalCount;
     document.getElementById('monitorAssignedCount').textContent = assignedCount;
     document.getElementById('monitorAvailableCount').textContent = availableCount;
+    
+    // Check registered status for all buttons to ensure lock icons are correct
+    buttons.forEach(button => {
+        const telecallerId = parseInt(button.getAttribute('data-telecaller-id'));
+        
+        // Check if this telecaller is registered in Firebase Realtime Database
+        firebase.database().ref(`registered_telecallers/${telecallerId}`).once('value')
+            .then(snapshot => {
+                if (snapshot.exists() && snapshot.val() === true) {
+                    button.classList.remove('locked');
+                }
+            })
+            .catch(error => {
+                console.error(`Error checking registered status for button ${telecallerId}:`, error);
+            });
+    });
 }
 
 // Display details about which client a telecaller is assigned to
@@ -1422,11 +1543,11 @@ function updateTelecallerButtonStyle(telecallerId, isRegistered) {
     const buttons = document.querySelectorAll(`[data-telecaller-id="${telecallerId}"]`);
     buttons.forEach(button => {
         if (isRegistered) {
-            // If registered, ensure it doesn't have a light grey appearance
-            button.style.opacity = '1';
+            // If registered, remove the locked class
+            button.classList.remove('locked');
         } else {
-            // If unregistered, make it light grey
-            button.style.opacity = '0.5';
+            // If unregistered, add the locked class
+            button.classList.add('locked');
         }
     });
 }
