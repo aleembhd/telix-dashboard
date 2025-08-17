@@ -472,6 +472,7 @@ input::placeholder {
     color: white;
     display: flex;
     justify-content: space-between;
+    position: relative;
 }
 
 .client-info {
@@ -489,6 +490,28 @@ input::placeholder {
 .client-phone {
     color: #bbb;
     font-size: 0.9rem;
+}
+
+.telecaller-count-tag {
+    background-color: #6366f1;
+    color: white;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+}
+
+/* Mobile responsiveness for telecaller count tag */
+@media (max-width: 768px) {
+    .telecaller-count-tag {
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        top: 10px;
+        right: 10px;
+    }
 }
 
 .client-details {

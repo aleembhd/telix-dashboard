@@ -69,6 +69,17 @@ function fetchClients() {
                     <div class="client-phone">${client.phoneNumber || 'No phone number'}</div>
                 `;
                 
+                // Add telecaller count tag
+                if (client.includedButtons && Array.isArray(client.includedButtons)) {
+                    const telecallerCount = client.includedButtons.length;
+                    if (telecallerCount > 0) {
+                        const countTag = document.createElement('span');
+                        countTag.className = 'telecaller-count-tag';
+                        countTag.textContent = `${telecallerCount} telecaller${telecallerCount !== 1 ? 's' : ''}`;
+                        clientInfoDiv.appendChild(countTag);
+                    }
+                }
+                
                 // Add client details with pricing and subscription
                 const detailsDiv = document.createElement('div');
                 detailsDiv.className = 'client-details';
