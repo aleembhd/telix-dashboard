@@ -100,6 +100,31 @@ function fetchClients() {
                     detailsDiv.appendChild(statusTag);
                 }
                 
+                // Add client status (new business logic field)
+                if (client.clientStatus) {
+                    const clientStatusTag = document.createElement('span');
+                    clientStatusTag.className = `client-status ${client.clientStatus}`;
+                    
+                    // Set appropriate text and styling based on status
+                    let statusText = '';
+                    switch (client.clientStatus) {
+                        case 'active':
+                            statusText = 'Active';
+                            break;
+                        case 'suspended':
+                            statusText = 'Suspended';
+                            break;
+                        case 'terminated':
+                            statusText = 'Terminated';
+                            break;
+                        default:
+                            statusText = 'Unknown';
+                    }
+                    
+                    clientStatusTag.textContent = statusText;
+                    detailsDiv.appendChild(clientStatusTag);
+                }
+                
                 // Add details div if it has children
                 if (detailsDiv.children.length > 0) {
                     clientInfoDiv.appendChild(detailsDiv);
@@ -181,22 +206,40 @@ function getNumberWord(num) {
 
 // Update the displayed telecaller names based on selected buttons
 function updateSelectedTelecallersList(selectedIds) {
+    console.log('=== UPDATE SELECTED TELECALLERS LIST ===');
+    console.log('Passed selectedIds parameter:', selectedIds);
+    
     const container = document.getElementById('selectedTelecallersContainer');
     const list = document.getElementById('selectedTelecallersList');
+    
+    // Always get the current selection state from the actual buttons to ensure sync
+    const currentSelectedButtons = document.querySelectorAll('#updateClientTelecallerGrid .telecaller-button.selected');
+    const currentSelectedIds = Array.from(currentSelectedButtons).map(btn => 
+        parseInt(btn.getAttribute('data-telecaller-id'))
+    );
+    
+    console.log('Current selected buttons from DOM:', currentSelectedButtons.length);
+    console.log('Current selected IDs from DOM:', currentSelectedIds);
+    
+    // Use the current selection state instead of the passed parameter
+    const actualSelectedIds = currentSelectedIds.length > 0 ? currentSelectedIds : selectedIds;
+    
+    console.log('Final actualSelectedIds to use:', actualSelectedIds);
     
     // Clear the existing list
     list.innerHTML = '';
     
-    if (selectedIds.length === 0) {
+    if (actualSelectedIds.length === 0) {
+        console.log('No telecallers selected, hiding container');
         container.style.display = 'none';
         return;
     }
     
     // Sort the IDs numerically
-    selectedIds.sort((a, b) => a - b);
+    actualSelectedIds.sort((a, b) => a - b);
     
     // Create list items for each selected telecaller
-    selectedIds.forEach(id => {
+    actualSelectedIds.forEach(id => {
         const nameKey = `telecaller${getNumberWord(id)}`;
         const displayName = telecallerNames[nameKey] || `Telecaller ${id}`;
         
@@ -251,19 +294,38 @@ function updateSelectedTelecallersList(selectedIds) {
             }
             
             // Correct answer, proceed with removal
+            console.log('=== REMOVING TELECALLER ===');
+            console.log('Removing telecaller ID:', id);
+            console.log('Current actualSelectedIds before removal:', actualSelectedIds);
+            
             // Find and unselect the corresponding button in the grid
             const button = document.querySelector(`#updateClientTelecallerGrid [data-telecaller-id="${id}"]`);
             if (button) {
+                console.log('Found button to remove:', button);
+                console.log('Button classes before removal:', button.className);
+                
                 button.classList.remove('selected');
                 button.classList.add('available');
+                
+                console.log('Button classes after removal:', button.className);
+            } else {
+                console.error('Button not found for telecaller ID:', id);
             }
             
-            // Update the list
-            const newSelectedIds = selectedIds.filter(selectedId => selectedId !== id);
+            // Update the list with the current selection state (excluding the removed telecaller)
+            const newSelectedIds = actualSelectedIds.filter(selectedId => selectedId !== id);
+            console.log('New selected IDs after removal:', newSelectedIds);
+            
             updateSelectedTelecallersList(newSelectedIds);
             
             // Update telecaller counts
             updateTelecallerCounts('existingClientsContent');
+            
+            // Force refresh the selected telecallers list to ensure proper sync
+            setTimeout(() => {
+                console.log('=== TIMEOUT REFRESH ===');
+                refreshSelectedTelecallersList();
+            }, 100);
         });
         
         listItem.appendChild(nameSpan);
@@ -273,6 +335,32 @@ function updateSelectedTelecallersList(selectedIds) {
     
     // Show the container
     container.style.display = 'block';
+}
+
+// Refresh the selected telecallers list to ensure it's in sync with button states
+function refreshSelectedTelecallersList() {
+    console.log('=== REFRESH SELECTED TELECALLERS LIST ===');
+    
+    const selectedButtons = document.querySelectorAll('#updateClientTelecallerGrid .telecaller-button.selected');
+    const selectedIds = Array.from(selectedButtons).map(btn => 
+        parseInt(btn.getAttribute('data-telecaller-id'))
+    );
+    
+    console.log('Found selected buttons:', selectedButtons.length);
+    console.log('Selected button IDs:', selectedIds);
+    console.log('Selected button elements:', selectedButtons);
+    
+    // Log each button's state
+    selectedButtons.forEach(btn => {
+        console.log(`Button ${btn.getAttribute('data-telecaller-id')}:`, {
+            classes: btn.className,
+            isSelected: btn.classList.contains('selected'),
+            isAvailable: btn.classList.contains('available'),
+            isFrozen: btn.classList.contains('frozen')
+        });
+    });
+    
+    updateSelectedTelecallersList(selectedIds);
 }
 
 // Toggle card expand/collapse
@@ -438,6 +526,10 @@ function selectClient(clientId) {
                 const status = clientData.subscriptionStatus || 'expired';
                 document.getElementById(`subscription${status.charAt(0).toUpperCase() + status.slice(1)}`).checked = true;
                 
+                // Set client status radio buttons (new field for business logic)
+                const clientStatus = clientData.clientStatus || 'active';
+                document.getElementById(`clientStatus${clientStatus.charAt(0).toUpperCase() + clientStatus.slice(1)}`).checked = true;
+                
                 // Populate trial date fields - use only consolidated format
                 if (clientData.freetrialdate) {
                     document.getElementById('trialStartDate').value = formatDateForInput(clientData.freetrialdate.start);
@@ -494,6 +586,9 @@ function selectClient(clientId) {
                 
                 // Update telecaller counts
                 updateTelecallerCounts('existingClientsContent');
+                
+                // Ensure the selected telecallers list is in sync
+                refreshSelectedTelecallersList();
                 
                 // Store the client ID for update
                 document.getElementById('updateClientBtn').setAttribute('data-client-id', clientId);
@@ -659,13 +754,22 @@ function createTelecallerButton(id, containerId) {
                 }
                 
                 // Correct answer, proceed with toggle
+                console.log('=== BUTTON CLICK TOGGLE ===');
+                console.log('Button ID:', id);
+                console.log('Button classes before toggle:', this.className);
+                
                 this.classList.toggle('selected');
                 this.classList.toggle('available');
+                
+                console.log('Button classes after toggle:', this.className);
                 
                 const selectedButtons = document.querySelectorAll('#updateClientTelecallerGrid .telecaller-button.selected');
                 const selectedIds = Array.from(selectedButtons).map(btn => 
                     parseInt(btn.getAttribute('data-telecaller-id'))
                 );
+                
+                console.log('Selected buttons after toggle:', selectedButtons.length);
+                console.log('Selected IDs after toggle:', selectedIds);
                 
                 updateSelectedTelecallersList(selectedIds);
                 
@@ -973,11 +1077,28 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // DEBUG: Log the current state before refresh
+        console.log('=== UPDATE CLIENT DEBUG START ===');
+        console.log('Before refresh - Selected buttons count:', document.querySelectorAll('#updateClientTelecallerGrid .telecaller-button.selected').length);
+        console.log('Before refresh - Available buttons count:', document.querySelectorAll('#updateClientTelecallerGrid .telecaller-button.available').length);
+        console.log('Before refresh - Frozen buttons count:', document.querySelectorAll('#updateClientTelecallerGrid .telecaller-button.frozen').length);
+        
+        // Refresh the selected telecallers list to ensure it's in sync with button states
+        refreshSelectedTelecallersList();
+        
+        // DEBUG: Log the state after refresh
+        console.log('After refresh - Selected buttons count:', document.querySelectorAll('#updateClientTelecallerGrid .telecaller-button.selected').length);
+        console.log('After refresh - Available buttons count:', document.querySelectorAll('#updateClientTelecallerGrid .telecaller-button.available').length);
+        
         // Get selected telecaller IDs
         const selectedButtons = document.querySelectorAll('#updateClientTelecallerGrid .telecaller-button.selected');
         const includedButtons = Array.from(selectedButtons).map(button => 
             parseInt(button.getAttribute('data-telecaller-id'))
         );
+        
+        // DEBUG: Log the selected telecallers
+        console.log('Selected telecaller IDs:', includedButtons);
+        console.log('Selected button elements:', selectedButtons);
         
         // Get form values
         const clientName = document.getElementById('updateClientName').value;
@@ -987,16 +1108,50 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get subscription status
         const subscriptionStatus = document.querySelector('input[name="subscriptionStatus"]:checked')?.value || 'expired';
         
+        // Get client status (new field for business logic)
+        const clientStatus = document.querySelector('input[name="clientStatus"]:checked')?.value || 'active';
+        
         // Get date values
         const trialStartDate = document.getElementById('trialStartDate').value;
         const trialEndDate = document.getElementById('trialEndDate').value;
         const subscriptionStartDate = document.getElementById('subscriptionStartDate').value;
         const subscriptionEndDate = document.getElementById('subscriptionEndDate').value;
         
-        // Validate form
-        if (!clientName || !clientPhone || includedButtons.length === 0) {
-            alert('Please fill in all required fields and select at least one telecaller');
+        // DEBUG: Log form validation data
+        console.log('Form validation data:', {
+            clientName: clientName,
+            clientPhone: clientPhone,
+            includedButtonsLength: includedButtons.length,
+            subscriptionStatus: subscriptionStatus,
+            clientStatus: clientStatus
+        });
+        
+        // Enhanced validation logic
+        if (!clientName || !clientPhone) {
+            console.error('VALIDATION FAILED: Missing basic client info', {
+                clientName: !!clientName,
+                clientPhone: !!clientPhone
+            });
+            alert('Please fill in client name and phone number');
             return;
+        }
+        
+        // Allow 0 telecallers only for suspended/terminated clients
+        if (includedButtons.length === 0 && clientStatus === 'active') {
+            console.error('VALIDATION FAILED: Active client must have at least one telecaller', {
+                includedButtonsLength: includedButtons.length,
+                clientStatus: clientStatus
+            });
+            alert('Active clients must have at least one telecaller assigned. If you want to remove all telecallers, please set the client status to "Suspended" or "Terminated".');
+            return;
+        }
+        
+        // Show confirmation if removing all telecallers
+        if (includedButtons.length === 0) {
+            const confirmRemove = confirm(`You are about to remove ALL telecallers from this client.\n\nClient: ${clientName}\nStatus: ${clientStatus}\n\nThis will completely suspend their access to telecaller services.\n\nAre you sure you want to proceed?`);
+            if (!confirmRemove) {
+                return;
+            }
         }
         
         // Set up client data object with all values
@@ -1005,6 +1160,7 @@ document.addEventListener('DOMContentLoaded', function() {
             phoneNumber: clientPhone,
             rate: clientRate || null,
             subscriptionStatus: subscriptionStatus,
+            clientStatus: clientStatus, // New field for business logic
             lastUpdated: new Date().toISOString()
         };
 
